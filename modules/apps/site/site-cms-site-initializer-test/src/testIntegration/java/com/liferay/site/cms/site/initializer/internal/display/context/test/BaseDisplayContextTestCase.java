@@ -8,6 +8,7 @@ package com.liferay.site.cms.site.initializer.internal.display.context.test;
 import com.liferay.batch.engine.unit.BatchEngineUnitProcessor;
 import com.liferay.batch.engine.unit.BatchEngineUnitReader;
 import com.liferay.info.constants.InfoDisplayWebKeys;
+import com.liferay.layout.test.util.LayoutTestUtil;
 import com.liferay.object.constants.ObjectDefinitionConstants;
 import com.liferay.object.constants.ObjectFolderConstants;
 import com.liferay.object.field.util.ObjectFieldUtil;
@@ -92,8 +93,8 @@ public abstract class BaseDisplayContextTestCase {
 						bundle.getSymbolicName(),
 						"com.liferay.site.initializer.cms")) {
 
-					_setUpProcessedFile(bundle, "01.object.folder");
-					_setUpProcessedFile(bundle, "02.object.definition");
+					_deleteFile(bundle, "01.object.folder");
+					_deleteFile(bundle, "02.object.definition");
 
 					CompletableFuture<Void> completableFuture =
 						_batchEngineUnitProcessor.processBatchEngineUnits(
@@ -128,7 +129,8 @@ public abstract class BaseDisplayContextTestCase {
 				Collections.singletonList(
 					ObjectFieldUtil.createObjectField(
 						"Text", "String", true, true, null,
-						RandomTestUtil.randomString(), "text", false)));
+						RandomTestUtil.randomString(), "text", false)),
+				Collections.emptyList());
 
 		if (status == WorkflowConstants.STATUS_DRAFT) {
 			return objectDefinition;
@@ -164,7 +166,8 @@ public abstract class BaseDisplayContextTestCase {
 			objectDefinition.getPanelCategoryKey(),
 			objectDefinition.isPortlet(), objectDefinition.getPluralLabelMap(),
 			objectDefinition.getScope(), objectDefinition.getStatus(),
-			objectDefinition.getObjectDefinitionSettings());
+			objectDefinition.getObjectDefinitionSettings(),
+			Collections.emptyList());
 	}
 
 	protected ObjectDefinition addCustomObjectDefinition(
@@ -210,6 +213,8 @@ public abstract class BaseDisplayContextTestCase {
 		themeDisplay.setCompany(
 			companyLocalService.getCompany(TestPropsValues.getCompanyId()));
 		themeDisplay.setLanguageId(group.getDefaultLanguageId());
+		themeDisplay.setLayout(
+			LayoutTestUtil.addTypeContentLayout(group, "test"));
 		themeDisplay.setPermissionChecker(
 			PermissionThreadLocal.getPermissionChecker());
 		themeDisplay.setRealUser(TestPropsValues.getUser());
@@ -234,6 +239,16 @@ public abstract class BaseDisplayContextTestCase {
 	@Inject
 	protected ObjectFolderLocalService objectFolderLocalService;
 
+	private void _deleteFile(Bundle bundle, String fileName) {
+		File file = bundle.getDataFile(
+			".com.liferay.site.initializer.cms.internal.batch." + fileName +
+				".batch.engine.data.json.0.processed");
+
+		if ((file != null) && file.exists()) {
+			file.delete();
+		}
+	}
+
 	private boolean _isCMSSiteInitialized() {
 		ObjectFolder objectFolder =
 			objectFolderLocalService.fetchObjectFolderByExternalReferenceCode(
@@ -245,16 +260,6 @@ public abstract class BaseDisplayContextTestCase {
 		}
 
 		return false;
-	}
-
-	private void _setUpProcessedFile(Bundle bundle, String fileName) {
-		File file = bundle.getDataFile(
-			".com.liferay.site.initializer.cms.internal.batch." + fileName +
-				".batch.engine.data.json.0.processed");
-
-		if ((file != null) && file.exists()) {
-			file.delete();
-		}
 	}
 
 	@Inject

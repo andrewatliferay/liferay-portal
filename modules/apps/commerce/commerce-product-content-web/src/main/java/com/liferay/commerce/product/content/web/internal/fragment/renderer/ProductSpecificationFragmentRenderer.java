@@ -60,7 +60,7 @@ public class ProductSpecificationFragmentRenderer implements FragmentRenderer {
 	}
 
 	@Override
-	public String getConfiguration(
+	public JSONObject getConfigurationJSONObject(
 		FragmentRendererContext fragmentRendererContext) {
 
 		ResourceBundle resourceBundle = ResourceBundleUtil.getBundle(
@@ -82,7 +82,7 @@ public class ProductSpecificationFragmentRenderer implements FragmentRenderer {
 				_log.debug(jsonException);
 			}
 
-			return StringPool.BLANK;
+			return null;
 		}
 	}
 
@@ -225,8 +225,8 @@ public class ProductSpecificationFragmentRenderer implements FragmentRenderer {
 		FragmentEntryLink fragmentEntryLink, String name) {
 
 		return _fragmentEntryConfigurationParser.getFieldValue(
-			fragmentEntryLink.getConfiguration(),
-			fragmentEntryLink.getEditableValues(),
+			fragmentEntryLink.getConfigurationJSONObject(),
+			fragmentEntryLink.getEditableValuesJSONObject(),
 			LocaleUtil.getMostRelevantLocale(), name);
 	}
 

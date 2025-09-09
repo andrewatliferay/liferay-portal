@@ -27,6 +27,7 @@ import com.liferay.object.service.ObjectRelationshipLocalService;
 import com.liferay.object.service.base.ObjectEntryServiceBaseImpl;
 import com.liferay.object.service.persistence.ObjectDefinitionPersistence;
 import com.liferay.petra.reflect.ReflectionUtil;
+import com.liferay.petra.sql.dsl.expression.Predicate;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.aop.AopService;
@@ -47,6 +48,7 @@ import com.liferay.portal.kernel.model.UserNotificationDeliveryConstants;
 import com.liferay.portal.kernel.model.UserNotificationEvent;
 import com.liferay.portal.kernel.model.role.RoleConstants;
 import com.liferay.portal.kernel.module.configuration.ConfigurationException;
+import com.liferay.portal.kernel.search.Sort;
 import com.liferay.portal.kernel.security.auth.PrincipalException;
 import com.liferay.portal.kernel.security.permission.ActionKeys;
 import com.liferay.portal.kernel.security.permission.PermissionChecker;
@@ -282,11 +284,6 @@ public class ObjectEntryServiceImpl extends ObjectEntryServiceBaseImpl {
 		ObjectDefinition objectDefinition =
 			_objectDefinitionPersistence.findByPrimaryKey(objectDefinitionId);
 
-		if (objectDefinition.isRootDescendantNode()) {
-			objectDefinition = _objectDefinitionPersistence.findByPrimaryKey(
-				objectDefinition.getRootObjectDefinitionId());
-		}
-
 		return ModelResourcePermissionRegistryUtil.getModelResourcePermission(
 			objectDefinition.getClassName());
 	}
@@ -326,14 +323,15 @@ public class ObjectEntryServiceImpl extends ObjectEntryServiceBaseImpl {
 
 	@Override
 	public List<ObjectEntry> getOneToManyObjectEntries(
-			long groupId, long objectRelationshipId, long primaryKey,
-			boolean related, String search, int start, int end)
+			long groupId, long objectRelationshipId, Predicate predicate,
+			long primaryKey, boolean related, String search, int start, int end,
+			Sort[] sorts)
 		throws PortalException {
 
 		List<ObjectEntry> objectEntries =
 			objectEntryLocalService.getOneToManyObjectEntries(
-				groupId, objectRelationshipId, primaryKey, related, search,
-				start, end);
+				groupId, objectRelationshipId, predicate, primaryKey, related,
+				search, start, end, sorts);
 
 		if (!ObjectEntryThreadLocal.isSkipObjectEntryResourcePermission()) {
 			for (ObjectEntry objectEntry : objectEntries) {
@@ -348,12 +346,13 @@ public class ObjectEntryServiceImpl extends ObjectEntryServiceBaseImpl {
 
 	@Override
 	public int getOneToManyObjectEntriesCount(
-			long groupId, long objectRelationshipId, long primaryKey,
-			boolean related, String search)
+			long groupId, long objectRelationshipId, Predicate predicate,
+			long primaryKey, boolean related, String search)
 		throws PortalException {
 
 		return objectEntryLocalService.getOneToManyObjectEntriesCount(
-			groupId, objectRelationshipId, primaryKey, related, search);
+			groupId, objectRelationshipId, predicate, primaryKey, related,
+			search);
 	}
 
 	@Override
@@ -464,6 +463,19 @@ public class ObjectEntryServiceImpl extends ObjectEntryServiceBaseImpl {
 	}
 
 	@Override
+	public ObjectEntry restoreObjectEntryFromTrash(
+			long userId, ObjectEntry objectEntry, ServiceContext serviceContext)
+		throws PortalException {
+
+		_checkPermission(
+			ActionKeys.DELETE, objectEntry.getObjectDefinitionId(),
+			objectEntry);
+
+		return objectEntryLocalService.restoreObjectEntryFromTrash(
+			userId, objectEntry, serviceContext);
+	}
+
+	@Override
 	public void subscribeObjectEntry(
 			long userId, long groupId, long objectEntryId)
 		throws PortalException {
@@ -554,13 +566,18 @@ public class ObjectEntryServiceImpl extends ObjectEntryServiceBaseImpl {
 		PortletResourcePermission portletResourcePermission =
 			_getPortletResourcePermission(objectDefinitionId);
 
-		PermissionChecker permissionChecker = getPermissionChecker();
-
 		ObjectDefinition objectDefinition =
 			_objectDefinitionPersistence.findByPrimaryKey(objectDefinitionId);
 
 		ObjectEntry rootObjectEntry = _getRootObjectEntry(
 			objectDefinition, values);
+
+		if (rootObjectEntry != null) {
+			portletResourcePermission = _getPortletResourcePermission(
+				rootObjectEntry.getObjectDefinitionId());
+		}
+
+		PermissionChecker permissionChecker = getPermissionChecker();
 
 		try {
 			portletResourcePermission.check(
@@ -705,11 +722,6 @@ public class ObjectEntryServiceImpl extends ObjectEntryServiceBaseImpl {
 
 		ObjectDefinition objectDefinition =
 			_objectDefinitionPersistence.findByPrimaryKey(objectDefinitionId);
-
-		if (objectDefinition.isRootDescendantNode()) {
-			objectDefinition = _objectDefinitionPersistence.findByPrimaryKey(
-				objectDefinition.getRootObjectDefinitionId());
-		}
 
 		return ObjectDefinitionPortletResourcePermissionRegistryUtil.getService(
 			objectDefinition.getResourceName());

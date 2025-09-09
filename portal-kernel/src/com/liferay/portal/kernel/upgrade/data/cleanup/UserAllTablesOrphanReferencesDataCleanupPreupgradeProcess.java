@@ -6,14 +6,17 @@
 package com.liferay.portal.kernel.upgrade.data.cleanup;
 
 import com.liferay.petra.string.StringBundler;
+import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.dao.db.DB;
 import com.liferay.portal.kernel.dao.db.DBInspector;
 import com.liferay.portal.kernel.dao.db.DBManagerUtil;
 import com.liferay.portal.kernel.dao.db.IndexMetadata;
+import com.liferay.portal.kernel.exception.NoSuchUserException;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.UserConstants;
 import com.liferay.portal.kernel.model.role.RoleConstants;
+import com.liferay.portal.kernel.upgrade.data.cleanup.util.DataCleanupLoggingUtil;
 import com.liferay.portal.kernel.upgrade.data.cleanup.util.OrphanReferencesDataCleanupUtil;
 import com.liferay.portal.kernel.util.ArrayUtil;
 
@@ -38,14 +41,6 @@ public class UserAllTablesOrphanReferencesDataCleanupPreupgradeProcess
 			String sourceColumnName, String sourceTableName,
 			String targetColumnName, String targetTableName)
 		throws Exception {
-
-		List<String> excludedTableNames =
-			OrphanReferencesDataCleanupUtil.getNormalizedExcludedTableNames(
-				connection);
-
-		if (excludedTableNames.contains(sourceTableName)) {
-			return;
-		}
 
 		DBInspector dbInspector = new DBInspector(connection);
 
@@ -73,6 +68,7 @@ public class UserAllTablesOrphanReferencesDataCleanupPreupgradeProcess
 
 			while (resultSet.next()) {
 				long companyId = resultSet.getLong(2);
+				long count = resultSet.getLong(3);
 				long userId = resultSet.getLong(1);
 
 				if (_isPartOfUniqueIndex(
@@ -83,21 +79,28 @@ public class UserAllTablesOrphanReferencesDataCleanupPreupgradeProcess
 
 					preparedStatement2.executeUpdate();
 
-					if (_log.isInfoEnabled()) {
-						_log.info(
-							StringBundler.concat(
-								resultSet.getLong(3),
-								" orphan entries from table ", sourceTableName,
-								" have been deleted because value ", userId,
-								" was not found in the origin table ",
-								targetTableName, " and column ",
-								targetColumnName));
-					}
+					DataCleanupLoggingUtil.logDelete(
+						_log, count, sourceTableName,
+						StringBundler.concat(
+							sourceColumnName, StringPool.SPACE, userId,
+							" was not found in ", targetTableName,
+							StringPool.PERIOD, targetColumnName));
 
 					continue;
 				}
 
-				long newUserId = _getAdminUserId(connection, companyId);
+				long newUserId = 0;
+
+				try {
+					newUserId = _getAdminUserId(connection, companyId);
+				}
+				catch (NoSuchUserException noSuchUserException) {
+					if (_log.isWarnEnabled()) {
+						_log.warn(noSuchUserException);
+					}
+
+					continue;
+				}
 
 				preparedStatement3.setLong(1, newUserId);
 
@@ -106,15 +109,12 @@ public class UserAllTablesOrphanReferencesDataCleanupPreupgradeProcess
 
 				preparedStatement3.executeUpdate();
 
-				if (_log.isInfoEnabled()) {
-					_log.info(
-						StringBundler.concat(
-							resultSet.getLong(3), " orphan entries from table ",
-							sourceTableName, " have been updated to value ",
-							newUserId, " because value ", userId,
-							" was not found in the origin table ",
-							targetTableName, " and column ", targetColumnName));
-				}
+				DataCleanupLoggingUtil.logUpdate(
+					_log, count, sourceTableName, sourceColumnName, newUserId,
+					StringBundler.concat(
+						sourceColumnName, StringPool.SPACE, userId,
+						" was not found in ", targetTableName,
+						StringPool.PERIOD, targetColumnName));
 			}
 		}
 	}
@@ -152,7 +152,7 @@ public class UserAllTablesOrphanReferencesDataCleanupPreupgradeProcess
 
 			try (ResultSet resultSet = preparedStatement.executeQuery()) {
 				if (!resultSet.next()) {
-					throw new Exception(
+					throw new NoSuchUserException(
 						"No admin user found for company " + companyId);
 				}
 

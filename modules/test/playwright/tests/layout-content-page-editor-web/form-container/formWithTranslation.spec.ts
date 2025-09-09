@@ -26,6 +26,8 @@ import {clickAndExpectToBeVisible} from '../../../utils/clickAndExpectToBeVisibl
 import fillAndClickOutside from '../../../utils/fillAndClickOutside';
 import getRandomString from '../../../utils/getRandomString';
 import {goToObjectEntity} from '../../setup/page-management-site/main/utils/goToObjectEntity';
+import {cmsPagesTest} from '../../site-cms-site-initializer/main/fixtures/cmsPagesTest';
+import {structureBuilderPagesTest} from '../../site-cms-site-initializer/structure-builder/fixtures/structureBuilderPagesTest';
 import chooseFileFromDocumentLibrary from '../main/utils/chooseFileFromDocumentLibrary';
 import getFormContainerDefinition from '../main/utils/getFormContainerDefinition';
 import getFragmentDefinition from '../main/utils/getFragmentDefinition';
@@ -33,6 +35,7 @@ import getPageDefinition from '../main/utils/getPageDefinition';
 
 const test = mergeTests(
 	apiHelpersTest,
+	cmsPagesTest,
 	dataApiHelpersTest,
 	displayPageTemplatesPagesTest,
 	documentLibraryPagesTest,
@@ -43,6 +46,7 @@ const test = mergeTests(
 		'LPD-32050': {enabled: true},
 		'LPD-60546': {enabled: true},
 		'LPS-178052': {enabled: true},
+		'LPS-179669': {enabled: true},
 	}),
 	fragmentsPagesTest,
 	isolatedSiteTest,
@@ -50,8 +54,21 @@ const test = mergeTests(
 	masterPagesPagesTest,
 	objectPagesTest,
 	pageEditorPagesTest,
-	pageManagementSiteTest
+	pageManagementSiteTest,
+	structureBuilderPagesTest
 );
+
+let structureIds = [];
+
+test.beforeEach(() => {
+	structureIds = [];
+});
+
+test.afterEach(async ({structureBuilderPage}) => {
+	for (const id of structureIds) {
+		await structureBuilderPage.deleteStructure(Number(id));
+	}
+});
 
 test(
 	'Can translate text form fields',
@@ -523,10 +540,12 @@ test(
 		const options = ['Spain', 'Italy', 'Germany', 'Brasil'];
 
 		for (const option of options) {
-			await apiHelpers.listTypeAdmin.postListTypeEntry(
-				listTypeDefinition.externalReferenceCode,
-				option
-			);
+			await apiHelpers.listTypeAdmin.postListTypeEntry({
+				key: option,
+				listTypeDefinitionExternalReferenceCode:
+					listTypeDefinition.externalReferenceCode,
+				name_i18n: {en_US: option},
+			});
 		}
 
 		const {body: objectDefinition} =
@@ -588,7 +607,7 @@ test(
 
 		await pageEditorPage.goto(layout, site.friendlyUrlPath);
 
-		// Map the form to the Boolean object
+		// Map the form to the Select object
 
 		await pageEditorPage.mapFormFragment(formId, 'Select', 'all', {
 			addLocalizationSelect: true,
@@ -596,15 +615,43 @@ test(
 
 		await pageEditorPage.publishPage();
 
+		// Go to view mode
+
 		await page.goto(`/web${site.friendlyUrlPath}${layout.friendlyUrlPath}`);
+
+		const input = page.getByPlaceholder('Choose an Option');
 
 		await clickAndExpectToBeVisible({
 			autoClick: true,
 			target: page.getByRole('option', {
 				name: 'Italy',
 			}),
-			trigger: page.getByPlaceholder('Choose an Option'),
+			trigger: input,
 		});
+
+		const valueInput = page.locator('[name="selectCountry"]');
+
+		await expect(valueInput).toHaveValue('italy');
+
+		// Check we can leave it blank after setting a value
+
+		await input.fill('');
+
+		await input.blur();
+
+		await expect(valueInput).toHaveValue('');
+
+		// Select value again
+
+		await clickAndExpectToBeVisible({
+			autoClick: true,
+			target: page.getByRole('option', {
+				name: 'Italy',
+			}),
+			trigger: input,
+		});
+
+		// Switch to spanish and select another value
 
 		const spanishOption = page
 			.getByRole('option')
@@ -669,10 +716,12 @@ test(
 			await apiHelpers.listTypeAdmin.postRandomListTypeDefinition();
 
 		for (const option of ['Spain', 'Italy', 'Germany']) {
-			await apiHelpers.listTypeAdmin.postListTypeEntry(
-				listTypeDefinition.externalReferenceCode,
-				option
-			);
+			await apiHelpers.listTypeAdmin.postListTypeEntry({
+				key: option,
+				listTypeDefinitionExternalReferenceCode:
+					listTypeDefinition.externalReferenceCode,
+				name_i18n: {en_US: option},
+			});
 		}
 
 		const objectDefinitionAPIClient =
@@ -960,243 +1009,166 @@ test(
 test(
 	'Can translate attachment form fields',
 	{tag: '@LPD-46482'},
-	async ({apiHelpers, page, pageEditorPage, pageManagementSite}) => {
+	async ({
+		contentsPage,
+		localizationSelectPage,
+		page,
+		pageEditorPage,
+		structureBuilderPage,
+	}) => {
+		const selectFileFromComputer = async (
+			fragment: Locator,
+			file: string
+		) => {
+			const fileChooserPromise = page.waitForEvent('filechooser');
 
-		// Create object definition
+			await fragment.getByText('Select File', {exact: true}).click();
 
-		const objectDefinitionAPIClient =
-			await apiHelpers.buildRestClient(ObjectDefinitionAPI);
+			const fileChooser = await fileChooserPromise;
 
-		const {body: objectDefinition} =
-			await objectDefinitionAPIClient.postObjectDefinition({
-				active: true,
-				enableLocalization: true,
-				externalReferenceCode: 'attachmentERC',
-				label: {
-					en_US: 'Attachment',
-				},
-				name: 'Attachment',
-				objectFields: [
-					{
-						DBType: 'Long',
-						businessType: 'Attachment',
-						defaultValue: 'null',
-						externalReferenceCode: 'filesFromComputerERC',
-						label: {
-							en_US: 'Files from Computer',
-						},
-						localized: true,
-						name: 'filesFromComputer',
-						objectFieldSettings: [
-							{
-								name: 'acceptedFileExtensions',
-								value: 'jpeg, jpg, pdf, png',
-							} as any,
-							{
-								name: 'maximumFileSize',
-								value: 100,
-							} as any,
-							{
-								name: 'fileSource',
-								value: 'userComputer',
-							} as any,
-							{
-								name: 'showFilesInDocumentsAndMedia',
-								value: false,
-							} as any,
-						],
-						required: false,
-					},
-					{
-						DBType: 'Long',
-						businessType: 'Attachment',
-						defaultValue: 'null',
-						externalReferenceCode: 'filesFromLibraryERC',
-						label: {
-							en_US: 'Files from Document Library',
-						},
-						localized: true,
-						name: 'filesFromLibrary',
-						objectFieldSettings: [
-							{
-								name: 'acceptedFileExtensions',
-								value: 'jpeg, jpg, pdf, png',
-							} as any,
-							{
-								name: 'maximumFileSize',
-								value: 100,
-							} as any,
-							{
-								name: 'fileSource',
-								value: 'documentsAndMedia',
-							} as any,
-						],
-						required: false,
-					},
-				],
-				pluralLabel: {
-					en_US: 'Attachments',
-				},
-				portlet: true,
-				scope: 'company',
-				status: {
-					code: 0,
-				},
-			});
+			await fileChooser.setFiles(file);
+		};
 
-		apiHelpers.data.push({
-			id: objectDefinition.id,
-			type: 'objectDefinition',
+		// Create a CMS structure
+
+		const structureERC = getRandomString();
+		const structureLabel = getRandomString();
+
+		await structureBuilderPage.createStructureFromData({
+			erc: structureERC,
+			label: structureLabel,
+			name: 'Bananza',
+			page: structureBuilderPage,
+			publish: false,
+			structureIds,
 		});
 
-		// Create a page with a Form fragment
+		// Add two fields of type select and configure one of them to select files from document library
 
-		const formId = getRandomString();
+		await structureBuilderPage.addField('Upload');
 
-		const formDefinition = getFormContainerDefinition({
-			id: formId,
+		await structureBuilderPage.changeFieldSettings({
+			label: 'Upload from computer',
+			name: 'uploadFromComputer',
+			requestFile: 'computer',
 		});
 
-		const layout = await apiHelpers.headlessDelivery.createSitePage({
-			pageDefinition: getPageDefinition([formDefinition]),
-			siteId: pageManagementSite.id,
-			title: getRandomString(),
+		await structureBuilderPage.addField('Upload');
+
+		await structureBuilderPage.changeFieldSettings({
+			label: 'Upload from DM',
+			name: 'uploadFromDM',
+			requestFile: 'document-library',
 		});
 
-		await pageEditorPage.goto(layout, pageManagementSite.friendlyUrlPath);
+		// Publish the structure
 
-		// Map the form to the Attachment object and publish the page
+		await structureBuilderPage.publishStructure();
 
-		await pageEditorPage.mapFormFragment(formId, 'Attachment', 'all', {
-			addLocalizationSelect: true,
-		});
+		// Customize experience and delete Friendly URL fragment
+
+		await structureBuilderPage.customizeExperience();
+
+		await pageEditorPage.deleteFragment(
+			await pageEditorPage.getFragmentId('Friendly URL')
+		);
 
 		await pageEditorPage.publishPage();
 
-		await page.goto(
-			`/web${pageManagementSite.friendlyUrlPath}${layout.friendlyUrlPath}`
+		// Create a content for this structure
+
+		await contentsPage.goto();
+
+		const contentTitle = getRandomString();
+
+		await contentsPage.createContent(structureLabel);
+
+		await contentsPage.fillData([{label: 'Title', value: contentTitle}]);
+
+		// Select files for default language
+
+		const filePath1 = path.join(
+			__dirname,
+			'../main/dependencies/file_upload_image_1.jpg'
+		);
+		const filePath2 = path.join(
+			__dirname,
+			'../main/dependencies/file_upload_image_2.jpg'
+		);
+		const filePath3 = path.join(
+			__dirname,
+			'../main/dependencies/file_upload_image_3.jpg'
+		);
+		const filePath4 = path.join(
+			__dirname,
+			'../main/dependencies/file_upload_image_4.jpg'
 		);
 
 		// Select file from computer in the default language
 
-		const fileChooserPromise = page.waitForEvent('filechooser');
+		const computerFileFragment = page.locator('.file-upload').first();
 
-		const firstFileUploadFragment = page.locator('.file-upload').first();
-
-		await firstFileUploadFragment
-			.getByText('Select File', {exact: true})
-			.click();
-
-		const fileChooser = await fileChooserPromise;
-
-		await fileChooser.setFiles(
-			path.join(__dirname, '../main/dependencies/file_upload_image_1.jpg')
-		);
+		await selectFileFromComputer(computerFileFragment, filePath1);
 
 		await expect(
-			firstFileUploadFragment.getByText('file_upload_image_1.jpg')
+			computerFileFragment.getByText('file_upload_image_1.jpg')
 		).toBeVisible();
 
 		// Select file from document library in the default language
 
-		const secondFileUploadFragment = page.locator('.file-upload').nth(1);
+		const dmFileFragment = page.locator('.file-upload').nth(1);
 
 		await chooseFileFromDocumentLibrary({
-			fileName: 'balinese.jpg',
+			filePath: filePath3,
 			page,
-			trigger: secondFileUploadFragment.getByText('Select File', {
+			trigger: dmFileFragment.getByText('Select File', {
 				exact: true,
 			}),
 		});
 
-		// Change the translation to spanish and update the files
+		// Publish
 
-		const spanishOption = page
-			.getByRole('option')
-			.filter({hasText: 'es-ES'});
+		await contentsPage.saveContent();
 
-		await clickAndExpectToBeVisible({
-			autoClick: true,
-			target: spanishOption,
-			trigger: page.getByLabel('Select a language, current language:'),
-		});
+		// Edit the content again and change file for DM fragment in Spanish
 
-		await fileChooser.setFiles(
-			path.join(__dirname, '../main/dependencies/file_upload_image_2.jpg')
-		);
+		await expect(async () => {
+			await contentsPage.goto();
 
-		// Check that the files have been selected and the fields have been translated
+			await contentsPage.editContent(contentTitle);
 
-		await expect(
-			firstFileUploadFragment.getByText('file_upload_image_2.jpg')
-		).toBeVisible();
+			await localizationSelectPage.switchLanguage('es-ES');
 
-		await chooseFileFromDocumentLibrary({
-			fileName: 'cats.jpg',
-			page,
-			trigger: secondFileUploadFragment.getByText('Select File', {
-				exact: true,
-			}),
-		});
+			await expect(async () => {
+				await chooseFileFromDocumentLibrary({
+					filePath: filePath4,
+					page,
+					trigger: dmFileFragment.getByText('Select File', {
+						exact: true,
+					}),
+				});
+			}).toPass({timeout: 5000});
+		}).toPass();
 
-		await page.getByLabel('Select a language, current language:').click();
+		// Change file for computer fragment
 
-		await expect(spanishOption).toContainText('Language: Translated');
-
-		// Choose other language to check the default values
-
-		const catalanOption = page
-			.getByRole('option')
-			.filter({hasText: 'ca-ES'});
-
-		await expect(catalanOption).toContainText('Language: Not Translated');
-
-		await catalanOption.click();
+		await selectFileFromComputer(computerFileFragment, filePath2);
 
 		await expect(
-			firstFileUploadFragment.getByText('file_upload_image_1.jpg')
+			computerFileFragment.getByText('file_upload_image_2.jpg')
 		).toBeVisible();
 
-		await expect(
-			secondFileUploadFragment.getByText('balinese.jpg')
-		).toBeVisible();
+		// Translate also title
 
-		// Submit the form
-
-		await page.getByRole('button', {name: 'Submit'}).click();
-
-		await expect(
-			page.getByText(
-				'Thank you. Your information was successfully received.'
-			)
-		).toBeVisible();
-
-		// Check the object entry
-
-		const {items} =
-			await apiHelpers.objectEntry.getObjectDefinitionObjectEntries(
-				'c/attachments'
-			);
-
-		const item = items[0];
-
-		const filesFromComputer = Object.entries(
-			item.filesFromComputer_i18n
-		).map(([locale, value]: [string, any]) => [locale, value.name]);
-
-		expect(filesFromComputer).toStrictEqual([
-			['en_US', 'file_upload_image_1.jpg'],
-			['es_ES', 'file_upload_image_2.jpg'],
+		await contentsPage.fillData([
+			{label: 'Title', value: `Spanish ${contentTitle}`},
 		]);
 
-		const filesFromLibrary = Object.entries(item.filesFromLibrary_i18n).map(
-			([locale, value]: [string, any]) => [locale, value.name]
-		);
+		// Check translation status
 
-		expect(filesFromLibrary).toStrictEqual([
-			['en_US', 'balinese.jpg'],
-			['es_ES', 'cats.jpg'],
-		]);
+		expect(await localizationSelectPage.getLanguageStatus('es-ES')).toBe(
+			'translated'
+		);
 	}
 );
 
@@ -1670,10 +1642,12 @@ test(
 			await apiHelpers.listTypeAdmin.postRandomListTypeDefinition();
 
 		for (const option of ['Spain', 'Italy']) {
-			await apiHelpers.listTypeAdmin.postListTypeEntry(
-				listTypeDefinition.externalReferenceCode,
-				option
-			);
+			await apiHelpers.listTypeAdmin.postListTypeEntry({
+				key: option,
+				listTypeDefinitionExternalReferenceCode:
+					listTypeDefinition.externalReferenceCode,
+				name_i18n: {en_US: option},
+			});
 		}
 
 		const objectDefinitionAPIClient =
@@ -2439,10 +2413,12 @@ test(
 			await apiHelpers.listTypeAdmin.postRandomListTypeDefinition();
 
 		for (const option of ['Spain', 'Italy']) {
-			await apiHelpers.listTypeAdmin.postListTypeEntry(
-				listTypeDefinition.externalReferenceCode,
-				option
-			);
+			await apiHelpers.listTypeAdmin.postListTypeEntry({
+				key: option,
+				listTypeDefinitionExternalReferenceCode:
+					listTypeDefinition.externalReferenceCode,
+				name_i18n: {en_US: option},
+			});
 		}
 
 		const objectFields: ObjectField[] = [

@@ -45,19 +45,16 @@ test('Behavior of item actions', async ({fdsSamplePage, page}) => {
 	const sidePanelActionTitle = 'Side Panel Title Provided by Action';
 	const sidePanelContentTitle = 'Side Panel Title Provided by Page';
 
-	const itemActionsCell = fdsSamplePage.table.itemActionsCells.first();
-
-	const itemActionButton = itemActionsCell.getByRole('button', {
-		exact: true,
-		name: 'Actions',
-	});
-
 	await test.step('Check that the Item Actions dropdown is present in table row', async () => {
-		await expect(itemActionButton).toBeVisible();
+		const tableItemActionButton =
+			fdsSamplePage.table.itemActionButtons.first();
 
-		const dropdownId = await itemActionButton.getAttribute('aria-controls');
+		await expect(tableItemActionButton).toBeVisible();
 
-		await itemActionButton.click();
+		const dropdownId =
+			await tableItemActionButton.getAttribute('aria-controls');
+
+		await tableItemActionButton.click();
 
 		await page
 			.locator(`#${dropdownId}`)
@@ -69,6 +66,58 @@ test('Behavior of item actions', async ({fdsSamplePage, page}) => {
 		).toHaveCount(14);
 
 		await page.keyboard.press('Escape');
+	});
+
+	await test.step('Check that the Item Actions dropdown displays icons for Table, List, and Cards views', async () => {
+		await test.step('Check Table view actions dropdown items has icons', async () => {
+			const tableItemActionButton =
+				fdsSamplePage.table.itemActionButtons.first();
+
+			await expect(tableItemActionButton).toBeVisible();
+
+			await fdsSamplePage.checkDropdownMenuIconsAreVisible(
+				tableItemActionButton
+			);
+		});
+
+		await test.step('Check List view actions dropdown items has icons', async () => {
+			await fdsSamplePage.changeVisualizationMode({
+				page,
+				visualizationMode: EFDSVisualizationMode.LIST,
+			});
+
+			const listItemActionButton =
+				fdsSamplePage.list.itemActionButtons.first();
+
+			await expect(listItemActionButton).toBeVisible();
+
+			await fdsSamplePage.checkDropdownMenuIconsAreVisible(
+				listItemActionButton
+			);
+		});
+
+		await test.step('Check Cards view action dropdown items has icons', async () => {
+			await fdsSamplePage.changeVisualizationMode({
+				page,
+				visualizationMode: EFDSVisualizationMode.CARDS,
+			});
+
+			const cardItemActionButton =
+				fdsSamplePage.cards.itemActionButtons.first();
+
+			await expect(cardItemActionButton).toBeVisible();
+
+			await fdsSamplePage.checkDropdownMenuIconsAreVisible(
+				cardItemActionButton
+			);
+		});
+
+		await test.step('Switch back to Table view', async () => {
+			await fdsSamplePage.changeVisualizationMode({
+				page,
+				visualizationMode: EFDSVisualizationMode.TABLE,
+			});
+		});
 	});
 
 	await test.step('Side Panel action opens a side panel with content title', async () => {
@@ -172,10 +221,33 @@ test('Behavior of item actions', async ({fdsSamplePage, page}) => {
 	});
 
 	await test.step('Sample view action opens an alert message', async () => {
-		await fdsSamplePage.clickItemAction(sampleView);
+		let dialogMessage = '';
 
 		page.on('dialog', async (dialog) => {
-			await expect(dialog.message).toBe('Hello Sample1!');
+			dialogMessage = dialog.message();
+			await dialog.accept();
+		});
+
+		for (const visualizationMode of Object.values(EFDSVisualizationMode)) {
+			await test.step(`Sample view action receives the list of items, ${visualizationMode}`, async () => {
+				await fdsSamplePage.changeVisualizationMode({
+					page,
+					visualizationMode,
+				});
+
+				await fdsSamplePage.clickItemAction(sampleView);
+				expect(dialogMessage).toContain('Hello Sample1!');
+				expect(dialogMessage).toContain('element #1');
+
+				await fdsSamplePage.clickItemAction(sampleView, 19);
+				expect(dialogMessage).toContain('Hello Sample32!');
+				expect(dialogMessage).toContain('element #20');
+			});
+		}
+
+		await fdsSamplePage.changeVisualizationMode({
+			page,
+			visualizationMode: EFDSVisualizationMode.TABLE,
 		});
 	});
 

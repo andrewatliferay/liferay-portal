@@ -6,8 +6,8 @@
 package com.liferay.site.cms.site.initializer.internal.display.context;
 
 import com.liferay.depot.service.DepotEntryLocalService;
+import com.liferay.document.library.configuration.DLConfiguration;
 import com.liferay.frontend.data.set.model.FDSActionDropdownItem;
-import com.liferay.frontend.taglib.clay.servlet.taglib.util.DropdownItem;
 import com.liferay.object.model.ObjectEntryFolder;
 import com.liferay.object.service.ObjectDefinitionService;
 import com.liferay.object.service.ObjectDefinitionSettingLocalService;
@@ -17,7 +17,6 @@ import com.liferay.portal.kernel.language.LanguageUtil;
 import com.liferay.portal.kernel.security.permission.resource.ModelResourcePermission;
 import com.liferay.portal.kernel.service.GroupLocalService;
 import com.liferay.portal.kernel.util.HashMapBuilder;
-import com.liferay.portal.kernel.util.ListUtil;
 import com.liferay.portal.kernel.util.Portal;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,7 +33,7 @@ public class ViewFilesSectionDisplayContext
 
 	public ViewFilesSectionDisplayContext(
 		DepotEntryLocalService depotEntryLocalService,
-		GroupLocalService groupLocalService,
+		DLConfiguration dlConfiguration, GroupLocalService groupLocalService,
 		HttpServletRequest httpServletRequest, Language language,
 		ObjectDefinitionService objectDefinitionService,
 		ObjectDefinitionSettingLocalService objectDefinitionSettingLocalService,
@@ -43,23 +42,10 @@ public class ViewFilesSectionDisplayContext
 		Portal portal) {
 
 		super(
-			depotEntryLocalService, groupLocalService, httpServletRequest,
-			language, objectDefinitionService,
+			depotEntryLocalService, dlConfiguration, groupLocalService,
+			httpServletRequest, language, objectDefinitionService,
 			objectDefinitionSettingLocalService,
 			objectEntryFolderModelResourcePermission, portal);
-	}
-
-	@Override
-	public List<DropdownItem> getBulkActionDropdownItems() {
-		return ListUtil.fromArray(
-			new FDSActionDropdownItem(
-				"#", "password-policies", "permissions",
-				LanguageUtil.get(httpServletRequest, "permissions"), null, null,
-				null),
-			new FDSActionDropdownItem(
-				"#", "trash", "remove",
-				LanguageUtil.get(httpServletRequest, "remove"), null, null,
-				null));
 	}
 
 	@Override
@@ -67,7 +53,8 @@ public class ViewFilesSectionDisplayContext
 		return HashMapBuilder.<String, Object>put(
 			"description",
 			LanguageUtil.get(
-				httpServletRequest, "click-new-to-create-your-first-file")
+				httpServletRequest,
+				"click-new-or-drag-and-drop-your-files-here")
 		).put(
 			"image", "/states/cms_empty_state_files.svg"
 		).put(
@@ -80,12 +67,6 @@ public class ViewFilesSectionDisplayContext
 		List<FDSActionDropdownItem> fdsActionDropdownItems =
 			super.getFDSActionDropdownItems();
 
-		fdsActionDropdownItems.add(
-			3,
-			new FDSActionDropdownItem(
-				null, "share", "share",
-				LanguageUtil.get(httpServletRequest, "share"), "get", null,
-				"link"));
 		fdsActionDropdownItems.add(
 			5,
 			new FDSActionDropdownItem(
@@ -103,7 +84,7 @@ public class ViewFilesSectionDisplayContext
 
 	@Override
 	protected String getEmptyStateDescriptionKey() {
-		return "click-new-to-create-your-first-file";
+		return "click-new-or-drag-and-drop-your-files-here";
 	}
 
 }

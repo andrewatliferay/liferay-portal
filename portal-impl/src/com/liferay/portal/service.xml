@@ -1245,6 +1245,9 @@
 		<finder db-index="false" name="CompanyIdLocations" return-type="Collection" where="parentOrganizationId != 0">
 			<finder-column name="companyId" />
 		</finder>
+		<finder name="LogoId" return-type="Collection">
+			<finder-column name="logoId" />
+		</finder>
 		<finder name="C_P" return-type="Collection">
 			<finder-column name="companyId" />
 			<finder-column name="parentOrganizationId" />
@@ -2166,7 +2169,7 @@
 			<finder-column arrayable-operator="OR" arrayable-pagination="true" name="roleId" />
 			<finder-column name="viewActionId" />
 		</finder>
-		<finder db-index="only" name="C_N_S_P_R_V" return-type="Collection">
+		<finder name="C_N_S_P_R_V" return-type="Collection" skip-db-index-optimization-and-finder-generation="true">
 			<finder-column name="companyId" />
 			<finder-column name="name" />
 			<finder-column name="scope" />

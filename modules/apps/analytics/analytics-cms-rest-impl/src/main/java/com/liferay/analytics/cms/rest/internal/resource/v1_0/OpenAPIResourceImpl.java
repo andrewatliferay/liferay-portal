@@ -89,6 +89,8 @@ public class OpenAPIResourceImpl {
 
 			add(ConnectionInfoResourceImpl.class);
 
+			add(ExpiredAssetResourceImpl.class);
+
 			add(InventoryAnalysisResourceImpl.class);
 
 			add(ObjectEntryAcquisitionChannelResourceImpl.class);
@@ -96,6 +98,8 @@ public class OpenAPIResourceImpl {
 			add(ObjectEntryHistogramMetricResourceImpl.class);
 
 			add(ObjectEntryMetricResourceImpl.class);
+
+			add(ObjectEntryTopPagesResourceImpl.class);
 
 			add(OverviewResourceImpl.class);
 

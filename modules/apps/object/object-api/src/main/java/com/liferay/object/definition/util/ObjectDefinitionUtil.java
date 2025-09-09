@@ -126,29 +126,34 @@ public class ObjectDefinitionUtil {
 		).put(
 			"Bookmark", "/bookmarks"
 		).put(
+			"BulkActionTask", "/cms/bulk-action-tasks"
+		).put(
+			"BulkActionTaskItem", "/cms/bulk-action-task-items"
+		).put(
+			"CMSDefaultPermission", "/cms/default-permissions"
+		).put(
 			"CommerceReturn", "/commerce/returns"
 		).put(
 			"CommerceReturnItem", "/commerce/return-items"
 		).put(
 			"DataSet", "/data-set-admin/data-sets"
 		).put(
-			"DataSetAction", "/data-set-admin/data-sets/actions"
+			"DataSetAction", "/data-set-admin/actions"
 		).put(
-			"DataSetCardsSection", "/data-set-admin/data-sets/cards-sections"
+			"DataSetCardsSection", "/data-set-admin/cards-sections"
 		).put(
 			"DataSetClientExtensionFilter",
-			"/data-set-admin/data-sets/client-extension-filters"
+			"/data-set-admin/client-extension-filters"
 		).put(
-			"DataSetDateFilter", "/data-set-admin/data-sets/date-filters"
+			"DataSetDateFilter", "/data-set-admin/date-filters"
 		).put(
-			"DataSetListSection", "/data-set-admin/data-sets/list-sections"
+			"DataSetListSection", "/data-set-admin/list-sections"
 		).put(
-			"DataSetSelectionFilter",
-			"/data-set-admin/data-sets/selection-filters"
+			"DataSetSelectionFilter", "/data-set-admin/selection-filters"
 		).put(
-			"DataSetSort", "/data-set-admin/data-sets/sorts"
+			"DataSetSort", "/data-set-admin/sorts"
 		).put(
-			"DataSetTableSection", "/data-set-admin/data-sets/table-sections"
+			"DataSetTableSection", "/data-set-admin/table-sections"
 		).put(
 			"ExternalVideo", "/cms/external-videos"
 		).put(

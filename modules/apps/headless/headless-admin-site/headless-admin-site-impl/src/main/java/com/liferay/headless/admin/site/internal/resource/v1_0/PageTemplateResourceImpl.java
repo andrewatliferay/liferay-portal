@@ -566,9 +566,10 @@ public class PageTemplateResourceImpl extends BasePageTemplateResourceImpl {
 
 		Layout layout = LayoutUtil.addContentLayout(
 			_cetManager, groupId, contentPageTemplate.getPageSpecifications(),
-			true, nameMap, nameMap, nameMap, null, LayoutConstants.TYPE_CONTENT,
-			null, true, true, Collections.emptyMap(),
-			WorkflowConstants.STATUS_APPROVED, serviceContext);
+			LayoutConstants.DEFAULT_PARENT_LAYOUT_ID, true, nameMap, nameMap,
+			nameMap, null, LayoutConstants.TYPE_CONTENT, null, true, true,
+			Collections.emptyMap(), WorkflowConstants.STATUS_APPROVED,
+			serviceContext);
 
 		return layout.getPlid();
 	}
@@ -624,9 +625,9 @@ public class PageTemplateResourceImpl extends BasePageTemplateResourceImpl {
 
 		return ServiceContextUtil.createServiceContext(
 			pageTemplate.getTaxonomyCategoryItemExternalReferences(),
-			pageTemplate.getDateCreated(), groupId, contextHttpServletRequest,
-			pageTemplate.getKeywords(), pageTemplate.getDateModified(),
-			contextUser.getUserId(), uuid);
+			contextCompany.getCompanyId(), pageTemplate.getDateCreated(),
+			groupId, contextHttpServletRequest, pageTemplate.getKeywords(),
+			pageTemplate.getDateModified(), contextUser.getUserId(), uuid);
 	}
 
 	private UnicodeProperties

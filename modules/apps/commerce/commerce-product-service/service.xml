@@ -586,6 +586,7 @@
 		<!-- Localized entity -->
 
 		<localized-entity>
+			<column name="CProductId" type="long" />
 			<localized-column name="name" />
 			<localized-column name="shortDescription" />
 			<localized-column name="description" />
@@ -1523,6 +1524,7 @@
 		<exception>CPAttachmentFileEntryName</exception>
 		<exception>CPAttachmentFileEntryProtocol</exception>
 		<exception>CPAttachmentFileEntrySize</exception>
+		<exception>CPConfigurationEntryAllowedOrderQuantities</exception>
 		<exception>CPConfigurationEntryQuantity</exception>
 		<exception>CPConfigurationListMaster</exception>
 		<exception>CPConfigurationListParentCPConfigurationListGroupId</exception>

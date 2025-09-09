@@ -15,6 +15,7 @@ import {pagesAdminPagesTest} from '../../../fixtures/pagesAdminPagesTest';
 import {systemSettingsPageTest} from '../../../fixtures/systemSettingsPageTest';
 import {workflowPagesTest} from '../../../fixtures/workflowPagesTest';
 import {SystemSettingsPage} from '../../../pages/configuration-admin-web/SystemSettingsPage';
+import {checkAccessibility} from '../../../utils/checkAccessibility';
 import {clickAndExpectToBeVisible} from '../../../utils/clickAndExpectToBeVisible';
 import fillAndClickOutside from '../../../utils/fillAndClickOutside';
 import {getRandomInt} from '../../../utils/getRandomInt';
@@ -1363,7 +1364,107 @@ baseTest(
 
 		await openFieldset(page, 'Fields');
 
+		await checkAccessibility({page, selectors: ['.ddm-label']});
+
 		await expect(textBox).toBeDisabled();
+	}
+);
+
+baseTest(
+	'A non-localizable field value is not deleted when switching and filtering from another translation',
+	{
+		tag: '@LPD-63134',
+	},
+	async ({apiHelpers, journalEditArticlePage, page, site}) => {
+		const localizableFieldName = 'LocalizedText';
+		const nonLocalizableFieldName = 'Text';
+		const structureName = 'Structure';
+
+		await baseTest.step(
+			'Create new structure with localizable and non-localizable fields',
+			async () => {
+				const dataDefinition = getDataStructureDefinition({
+					defaultLanguageId: 'en_US',
+					fields: [
+						{localizable: true, name: localizableFieldName},
+						{localizable: false, name: nonLocalizableFieldName},
+					],
+					name: structureName,
+				});
+
+				await apiHelpers.dataEngine.createStructure(
+					site.id,
+					dataDefinition
+				);
+			}
+		);
+
+		await baseTest.step(
+			'Open new structure and fill both fields',
+			async () => {
+				await journalEditArticlePage.goto({
+					siteUrl: site.friendlyUrlPath,
+					structureName,
+				});
+
+				await page.getByLabel(localizableFieldName).fill('en-us');
+
+				await page
+					.getByLabel(nonLocalizableFieldName, {exact: true})
+					.fill('test');
+			}
+		);
+
+		const translationButton = page.getByRole('combobox', {
+			name: 'Select a language',
+		});
+
+		await baseTest.step(
+			'Switch language, translate localizable field and filter fields by translated',
+			async () => {
+				await clickAndExpectToBeVisible({
+					autoClick: true,
+					target: page.getByRole('option', {
+						name: 'Catalan Language: Not Translated',
+					}),
+					trigger: translationButton,
+				});
+
+				await openFieldset(page, 'Fields');
+
+				await page.getByLabel(localizableFieldName).fill('ca-es');
+
+				const translationFilterButton = page.getByRole('combobox', {
+					name: 'Select a Filter',
+				});
+
+				await clickAndExpectToBeVisible({
+					autoClick: true,
+					target: page.getByRole('option', {
+						exact: true,
+						name: 'Translated',
+					}),
+					trigger: translationFilterButton,
+				});
+			}
+		);
+
+		await baseTest.step(
+			'Switch back to default language and assert that non localizable field value is still there',
+			async () => {
+				await clickAndExpectToBeVisible({
+					autoClick: true,
+					target: page.getByRole('option', {
+						name: 'English Language: Default',
+					}),
+					trigger: translationButton,
+				});
+
+				await expect(
+					page.getByLabel(nonLocalizableFieldName, {exact: true})
+				).toHaveValue('test');
+			}
+		);
 	}
 );
 
@@ -1944,5 +2045,43 @@ baseTest(
 
 			await waitForAlert(page);
 		}
+	}
+);
+
+baseTest(
+	'Journal Article Shows Wrong Display Date When Published After Draft',
+	{
+		tag: '@LPD-62472',
+	},
+	async ({journalEditArticlePage, journalPage, page, site}) => {
+		await journalEditArticlePage.goto({siteUrl: site.friendlyUrlPath});
+
+		baseTest.setTimeout(120000);
+
+		await journalEditArticlePage.saveAsDraftWithPermissions(
+			getRandomString()
+		);
+
+		await page.waitForTimeout(50000);
+
+		await page.getByRole('button', {name: 'Publish'}).click();
+
+		await page.waitForTimeout(50000);
+
+		await page.getByRole('menuitem', {name: 'Publish'}).click();
+
+		await journalPage.changeView('table');
+
+		const firstDisplayDateTd = page
+			.locator('td.lfr-display-date-column')
+			.first();
+
+		const spanInsideTd = firstDisplayDateTd.locator('span');
+
+		await spanInsideTd.waitFor({state: 'visible'});
+
+		const displayDateText = await spanInsideTd.textContent();
+
+		expect(displayDateText).not.toBe('1 Minute ago');
 	}
 );

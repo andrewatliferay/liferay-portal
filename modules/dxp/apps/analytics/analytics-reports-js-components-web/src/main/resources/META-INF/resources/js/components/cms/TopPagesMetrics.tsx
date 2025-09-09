@@ -21,15 +21,15 @@ export type Metric = {
 	value: number;
 };
 
-export type Page = {
+export type TopPage = {
 	canonicalUrl: string;
 	defaultMetric: Metric;
 	pageTitle: string;
-	siteName: string;
+	siteName?: string;
 };
 
 export type AssetData = {
-	pages: Page[];
+	topPages: TopPage[];
 	totalCount: number;
 };
 
@@ -45,11 +45,11 @@ type TopPagesMetricsTableProps = {
 };
 
 const TopPagesMetricsTable: React.FC<TopPagesMetricsTableProps> = ({data}) => {
-	const formattedData: FormattedPage[] = data.pages.map((page) => ({
-		count: toThousands(page.defaultMetric.value),
-		link: page.canonicalUrl,
-		page: `${page.siteName} | ${page.pageTitle}`,
-		percentage: `${getPercentage((page.defaultMetric.value / data.totalCount) * 100)}%`,
+	const formattedData: FormattedPage[] = data.topPages.map((topPage) => ({
+		count: toThousands(topPage.defaultMetric.value),
+		link: topPage.canonicalUrl,
+		page: topPage.pageTitle,
+		percentage: `${getPercentage((topPage.defaultMetric.value / data.totalCount) * 100)}%`,
 	}));
 
 	return (
@@ -71,8 +71,6 @@ const TopPagesMetricsTable: React.FC<TopPagesMetricsTableProps> = ({data}) => {
 				<ClayTable.Head>
 					<ClayTable.Row>
 						<ClayTable.Cell headingCell noWrap>
-							<span>{Liferay.Language.get('site')} | </span>
-
 							<span>{Liferay.Language.get('page-title')}</span>
 						</ClayTable.Cell>
 
@@ -127,7 +125,7 @@ const TopPagesMetrics: React.FC = () => {
 	});
 
 	const {data, loading} = useFetch<AssetData>(
-		`/o/analytics-cms-rest/v1.0/top-pages-metric${queryString}`
+		`/o/analytics-cms-rest/v1.0/object-entry-top-pages${queryString}`
 	);
 
 	if (loading) {

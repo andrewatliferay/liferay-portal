@@ -10,7 +10,7 @@ import {clickAndExpectToBeVisible} from '../../../../utils/clickAndExpectToBeVis
 import {PORTLET_URLS} from '../../../../utils/portletUrls';
 import {waitForAlert} from '../../../../utils/waitForAlert';
 
-type SidePanelName = 'General' | 'Comments' | 'Schedule';
+type SidePanelName = 'Categorization' | 'General' | 'Comments' | 'Schedule';
 
 type Field =
 	| {
@@ -47,7 +47,7 @@ export class ContentsPage {
 	async goto() {
 		await this.page.goto(PORTLET_URLS.cmsContents);
 
-		await this.newButton.waitFor();
+		await this.newButton.waitFor({state: 'visible'});
 	}
 
 	async closeSidePanel() {
@@ -71,6 +71,20 @@ export class ContentsPage {
 		});
 
 		await this.page.getByRole('tab', {name: 'General'}).waitFor();
+	}
+
+	async createFolder(folderName: string) {
+		await clickAndExpectToBeVisible({
+			autoClick: true,
+			target: this.page.getByRole('menuitem', {name: 'Folder'}),
+			trigger: this.newButton,
+		});
+
+		await this.page.getByRole('heading', {name: 'New Folder'}).waitFor();
+
+		await this.page.getByLabel('NameRequired').fill(folderName);
+
+		await this.page.getByRole('button', {name: 'Save'}).click();
 	}
 
 	async deleteContent(title: string) {
@@ -125,6 +139,15 @@ export class ContentsPage {
 				await element.setChecked(field.value);
 			}
 		}
+	}
+
+	async navigateTo(folderName: string) {
+		await this.page
+			.getByRole('row', {name: folderName})
+			.getByRole('link')
+			.click();
+
+		await this.page.getByPlaceholder('Search').waitFor({state: 'visible'});
 	}
 
 	async openSidePanel(panelName: SidePanelName = 'General') {

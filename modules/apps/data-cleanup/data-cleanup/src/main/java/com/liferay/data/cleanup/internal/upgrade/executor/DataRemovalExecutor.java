@@ -22,7 +22,18 @@ import com.liferay.portal.kernel.model.Release;
 import com.liferay.portal.kernel.service.LayoutLocalService;
 import com.liferay.portal.kernel.service.ReleaseLocalService;
 import com.liferay.portal.kernel.upgrade.UpgradeProcess;
+import com.liferay.portal.kernel.upgrade.data.cleanup.DataCleanupPreupgradeProcess;
 import com.liferay.portal.kernel.util.Portal;
+import com.liferay.portal.upgrade.data.cleanup.AnalyticsMessageDataCleanupPreupgradeProcess;
+import com.liferay.portal.upgrade.data.cleanup.CompanyDataCleanupPreupgradeProcess;
+import com.liferay.portal.upgrade.data.cleanup.ConfigurationDataCleanupPreupgradeProcess;
+import com.liferay.portal.upgrade.data.cleanup.DDMStructureDataCleanupPreupgradeProcess;
+import com.liferay.portal.upgrade.data.cleanup.DLFileEntryDataCleanupPreupgradeProcess;
+import com.liferay.portal.upgrade.data.cleanup.DataCleanupPreupgradeProcessSuite;
+import com.liferay.portal.upgrade.data.cleanup.GroupDataCleanupPreupgradeProcess;
+import com.liferay.portal.upgrade.data.cleanup.NullUnicodeContentDataCleanupPreupgradeProcess;
+import com.liferay.portal.upgrade.data.cleanup.QuartzJobDetailsDataCleanupPreupgradeProcess;
+import com.liferay.portal.upgrade.data.cleanup.UserDataCleanupPreupgradeProcess;
 
 import java.util.Map;
 import java.util.function.Supplier;
@@ -79,6 +90,76 @@ public class DataRemovalExecutor {
 			"com.liferay.layout.service",
 			() -> new WidgetLayoutTypeSettingsUpgradeProcess(
 				_layoutLocalService));
+
+		_executeDataCleanupPreupgradeProcesses(dataRemovalConfiguration);
+	}
+
+	private void _executeDataCleanupPreupgradeProcesses(
+			DataRemovalConfiguration dataRemovalConfiguration)
+		throws Exception {
+
+		DataCleanupPreupgradeProcessSuite dataCleanupPreupgradeProcessSuite =
+			new DataCleanupPreupgradeProcessSuite();
+
+		for (DataCleanupPreupgradeProcess dataCleanupPreupgradeProcess :
+				dataCleanupPreupgradeProcessSuite.
+					getDataCleanupPreupgradeProcesses()) {
+
+			if (_isDataCleanupPreupgradeProcessEnabled(
+					dataCleanupPreupgradeProcess, dataRemovalConfiguration)) {
+
+				dataCleanupPreupgradeProcess.upgrade();
+
+				CacheRegistryUtil.clear();
+			}
+		}
+	}
+
+	private boolean _isDataCleanupPreupgradeProcessEnabled(
+		DataCleanupPreupgradeProcess dataCleanupPreupgradeProcess,
+		DataRemovalConfiguration dataRemovalConfiguration) {
+
+		Class<?> clazz = dataCleanupPreupgradeProcess.getClass();
+
+		if (clazz.equals(AnalyticsMessageDataCleanupPreupgradeProcess.class)) {
+			return dataRemovalConfiguration.removeAnalyticsMessageData();
+		}
+
+		if (clazz.equals(CompanyDataCleanupPreupgradeProcess.class)) {
+			return dataRemovalConfiguration.removeCompanyOrphanData();
+		}
+
+		if (clazz.equals(ConfigurationDataCleanupPreupgradeProcess.class)) {
+			return dataRemovalConfiguration.removeConfigurationOrphanData();
+		}
+
+		if (clazz.equals(DDMStructureDataCleanupPreupgradeProcess.class)) {
+			return dataRemovalConfiguration.removeDDMStructureOrphanData();
+		}
+
+		if (clazz.equals(DLFileEntryDataCleanupPreupgradeProcess.class)) {
+			return dataRemovalConfiguration.removeDLFileEntryOrphanData();
+		}
+
+		if (clazz.equals(GroupDataCleanupPreupgradeProcess.class)) {
+			return dataRemovalConfiguration.removeGroupOrphanData();
+		}
+
+		if (clazz.equals(
+				NullUnicodeContentDataCleanupPreupgradeProcess.class)) {
+
+			return dataRemovalConfiguration.removeNullUnicodeContentData();
+		}
+
+		if (clazz.equals(QuartzJobDetailsDataCleanupPreupgradeProcess.class)) {
+			return dataRemovalConfiguration.removeQuartzJobDetailsData();
+		}
+
+		if (clazz.equals(UserDataCleanupPreupgradeProcess.class)) {
+			return dataRemovalConfiguration.removeUserOrphanData();
+		}
+
+		return false;
 	}
 
 	private void _removeModuleData(

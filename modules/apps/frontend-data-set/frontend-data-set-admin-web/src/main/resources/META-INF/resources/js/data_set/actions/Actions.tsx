@@ -14,6 +14,7 @@ import React, {useEffect, useState} from 'react';
 import {
 	DEFAULT_FETCH_HEADERS,
 	OBJECT_RELATIONSHIP,
+	PAGE_SIZE,
 } from '../../utils/constants';
 import openDefaultFailureToast from '../../utils/openDefaultFailureToast';
 import openDefaultSuccessToast from '../../utils/openDefaultSuccessToast';
@@ -157,6 +158,7 @@ const Actions = ({dataSet, namespace, spritemap}: IDataSetSectionProps) => {
 			params: {
 				filter: `type eq '${type}'`,
 				nestedFields: OBJECT_RELATIONSHIP.DATA_SET_ACTIONS,
+				pageSize: PAGE_SIZE,
 				sort: 'dateCreated:asc',
 			},
 			relationship: OBJECT_RELATIONSHIP.DATA_SET_ACTIONS,
@@ -183,7 +185,12 @@ const Actions = ({dataSet, namespace, spritemap}: IDataSetSectionProps) => {
 
 		const responseJSON = await response.json();
 
-		const storedActions: IAction[] = responseJSON.items;
+		// Temporarily filtering by `action.type` since the `filter` parameter
+		// in the resource url isn't implemented yet. See LPD-62317.
+
+		const storedActions: IAction[] = (responseJSON.items || []).filter(
+			(action: IAction) => action.type === type
+		);
 
 		const actionTypeOrder =
 			activeTab === 0 ? 'itemActionsOrder' : 'creationActionsOrder';

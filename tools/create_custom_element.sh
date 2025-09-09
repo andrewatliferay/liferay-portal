@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export LC_ALL=en_US.UTF-8
+
 function check_usage {
 	if [ ! "${#}" -eq 2 ]
 	then
@@ -179,20 +181,55 @@ EOF
 
 	mkdir -p common/services/liferay common/styles
 
+	write_liferay_integration_files
+
 	write_react_app_files
 
 	cd ..
 }
 
-function create_vue_2_app {
-	check_utils npm
+function create_vite_react_app {
+	check_utils yarn
 
-	npm i -g @vue/cli
+	npm create vite@latest ${CUSTOM_ELEMENT_NAME} -- --template react
 
-	vue create ${CUSTOM_ELEMENT_NAME} --default
+	cd ${CUSTOM_ELEMENT_NAME}
 
-	sed -i -e "s|#app|${CUSTOM_ELEMENT_NAME}|g" ${CUSTOM_ELEMENT_NAME}/src/main.js
-	sed -i -e "s|<div id=\"app\"></div>|<${CUSTOM_ELEMENT_NAME}></${CUSTOM_ELEMENT_NAME}>|g" ${CUSTOM_ELEMENT_NAME}/public/index.html
+	yarn add sass
+	#yarn remove @testing-library/jest-dom @testing-library/react @testing-library/user-event web-vitals
+
+	mv README.md README.markdown
+
+	cat << EOF > .env
+DISABLE_ESLINT_PLUGIN=true
+SKIP_PREFLIGHT_CHECK=true
+EOF
+
+	rm -f yarn.lock eslint.config.js
+
+	write_react_client_extension
+
+	cd src
+
+	mkdir -p common/services/liferay
+
+	touch common/services/liferay/api.js
+
+	touch common/services/liferay/liferay.js
+
+	mkdir -p common/styles
+
+	touch common/styles/custom.scss
+
+	touch common/styles/index.scss
+
+	touch common/styles/variables.scss
+
+	write_liferay_integration_files
+
+	write_react_app_vite_files
+
+	cd ..
 }
 
 function create_vite_vue_3_app {
@@ -212,6 +249,17 @@ function create_vite_vue_3_app {
 	rm -f index.html-e src/App.vue-e src/main.js-e src/style.css-e
 
 	yarn
+}
+
+function create_vue_2_app {
+	check_utils npm
+
+	npm i -g @vue/cli
+
+	vue create ${CUSTOM_ELEMENT_NAME} --default
+
+	sed -i -e "s|#app|${CUSTOM_ELEMENT_NAME}|g" ${CUSTOM_ELEMENT_NAME}/src/main.js
+	sed -i -e "s|<div id=\"app\"></div>|<${CUSTOM_ELEMENT_NAME}></${CUSTOM_ELEMENT_NAME}>|g" ${CUSTOM_ELEMENT_NAME}/public/index.html
 }
 
 function main {
@@ -234,12 +282,15 @@ function main {
 	elif [ "${2}" == "react" ]
 	then
 		create_react_app
-	elif [ "${2}" == "vue2" ]
+	elif [ "${2}" == "vite-react" ]
 	then
-		create_vue_2_app
+		create_vite_react_app
 	elif [ "${2}" == "vite-vue3" ]
 	then
 		create_vite_vue_3_app
+	elif [ "${2}" == "vue2" ]
+	then
+		create_vue_2_app
 	else
 		echo "Unknown JavaScript framework: ${2}."
 
@@ -267,7 +318,8 @@ function write_angular_client_extension {
 	echo -n "    useESM: true" >> client-extension.yaml
 }
 
-function write_react_app_files {
+function write_liferay_integration_files {
+
 	#
 	# common/services/liferay/api.js
 	#
@@ -333,6 +385,9 @@ export const Liferay = window.Liferay || {
 	authToken: '',
 };
 EOF
+}
+
+function write_react_app_files {
 
 	#
 	# common/styles/hello-world.scss
@@ -519,6 +574,183 @@ function write_react_client_extension {
 	echo "    urls:" >> client-extension.yaml
 	echo "        - js/main.*.js" >> client-extension.yaml
 	echo -n "    useESM: true" >> client-extension.yaml
+}
+
+function write_vite_react_app_files {
+
+	#
+	# common/styles/custom.scss
+	#
+
+	cat << EOF > common/styles/custom.scss
+.${CUSTOM_ELEMENT_NAME} {
+	h1 {
+		color: \$primary-color;
+		font-weight: bold;
+	}
+}
+EOF
+
+	#
+	# common/styles/index.scss
+	#
+
+	cat << EOF > common/styles/index.scss
+${CUSTOM_ELEMENT_NAME} {
+	@import 'variables';
+
+	@import 'custom';
+}
+EOF
+
+	#
+	# common/styles/variables.scss
+	#
+
+	cat << EOF > common/styles/variables.scss
+\$primary-color: #295ccc;
+EOF
+
+	#
+	# package.json
+	#
+
+	cat << EOF > ../package.json
+{
+	"dependencies": {
+		"react": "18.2.0",
+		"react-dom": "18.2.0"
+	},
+	"devDependencies": {
+		"@types/react": "^18.3.1",
+		"@types/react-dom": "^18.3.1",
+		"@vitejs/plugin-react": "^4.2.1",
+		"vite": "^4.4.5"
+	},
+	"name": "@liferay/TODOFIXTHISKEY",
+	"private": true,
+	"scripts": {
+		"build": "vite build",
+		"dev": "vite",
+		"preview": "vite preview"
+	},
+	"type": "module",
+	"version": "0.0.0"
+}
+EOF
+
+	#
+	# src/App.css
+	#
+
+	cat << EOF > App.css
+${CUSTOM_ELEMENT_NAME} {
+	margin: 0 auto;
+	max-width: 1280px;
+	padding: 2rem;
+	text-align: center;
+
+	.logo {
+		height: 6em;
+		padding: 1.5em;
+		transition: filter 300ms;
+		will-change: filter;
+
+		&:hover {
+			filter: drop-shadow(0 0 2em #646cffaa);
+		}
+
+		&.react:hover {
+			filter: drop-shadow(0 0 2em #61dafbaa);
+		}
+	}
+}
+
+@keyframes logo-spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	a:nth-of-type(2) .logo {
+		animation: logo-spin infinite 20s linear;
+	}
+}
+
+.card {
+	padding: 2em;
+}
+
+.read-the-docs {
+	color: #888;
+}
+EOF
+
+	#
+	# src/main.jsx
+	#
+
+	cat << EOF > main.jsx
+import React, {StrictMode} from 'react';
+import {createRoot} from 'react-dom/client';
+
+import App from './App.jsx'
+import './index.css'
+
+class WebComponent extends HTMLElement {
+
+	connectedCallback() {
+		this.root = createRoot(this);
+
+		this.root.render(
+			<StrictMode>
+				<App />
+			</StrictMode>,
+			this
+		);
+	}
+
+	disconnectedCallback() {
+		this.root.unmount();
+
+		delete this.root;
+	}
+}
+
+const ELEMENT_ID = '${CUSTOM_ELEMENT_NAME}';
+
+if (!customElements.get(ELEMENT_ID)) {
+	customElements.define(ELEMENT_ID, WebComponent);
+}
+EOF
+
+	#
+	# vite.config.js
+	#
+
+	cat << EOF > ../vite.config.js
+import {defineConfig} from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig(
+	{
+		base: '/o/${CUSTOM_ELEMENT_NAME}',
+		build: {
+			outDir: 'build/vite',
+			rollupOptions: {
+				external: [
+					'react',
+					'react-dom',
+				],
+			}
+		},
+		plugins: [react()]
+	})
+EOF
 }
 
 main "${@}"

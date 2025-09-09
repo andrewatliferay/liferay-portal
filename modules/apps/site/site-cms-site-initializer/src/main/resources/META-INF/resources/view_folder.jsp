@@ -14,6 +14,13 @@ ViewFolderSectionDisplayContext viewFolderSectionDisplayContext = (ViewFolderSec
 <div class="cms-section">
 	<div>
 		<react:component
+			module="{Toolbar} from site-cms-site-initializer"
+			props="<%= viewFolderSectionDisplayContext.getToolbarProps() %>"
+		/>
+	</div>
+
+	<div>
+		<react:component
 			module="{Breadcrumb} from site-cms-site-initializer"
 			props="<%= viewFolderSectionDisplayContext.getBreadcrumbProps() %>"
 		/>
@@ -32,6 +39,7 @@ ViewFolderSectionDisplayContext viewFolderSectionDisplayContext = (ViewFolderSec
 		propsTransformer="{FolderFDSPropsTransformer} from site-cms-site-initializer"
 		selectedItemsKey="embedded.id"
 		selectionType="multiple"
+		showSelectAll="<%= true %>"
 		style="fluid"
 	/>
 </div>

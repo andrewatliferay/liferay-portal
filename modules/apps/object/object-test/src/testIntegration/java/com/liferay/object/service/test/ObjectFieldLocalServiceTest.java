@@ -71,6 +71,10 @@ import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.json.JSONUtil;
 import com.liferay.portal.kernel.language.LanguageUtil;
 import com.liferay.portal.kernel.repository.model.FileEntry;
+import com.liferay.portal.kernel.security.auth.PrincipalThreadLocal;
+import com.liferay.portal.kernel.security.permission.PermissionChecker;
+import com.liferay.portal.kernel.security.permission.PermissionCheckerFactoryUtil;
+import com.liferay.portal.kernel.security.permission.PermissionThreadLocal;
 import com.liferay.portal.kernel.test.AssertUtils;
 import com.liferay.portal.kernel.test.rule.AggregateTestRule;
 import com.liferay.portal.kernel.test.rule.DeleteAfterTestRun;
@@ -289,7 +293,8 @@ public class ObjectFieldLocalServiceTest {
 							).value(
 								"oneToManyRelationshipName"
 							).build())
-					).build())));
+					).build()),
+				Collections.emptyList()));
 		AssertUtils.assertFailure(
 			ObjectFieldBusinessTypeException.class,
 			"Salesforce storage type does not support aggregation and " +
@@ -312,7 +317,8 @@ public class ObjectFieldLocalServiceTest {
 						_listTypeDefinition.getListTypeDefinitionId()
 					).name(
 						"a" + RandomTestUtil.randomString()
-					).build())));
+					).build()),
+				Collections.emptyList()));
 		AssertUtils.assertFailure(
 			ObjectFieldListTypeDefinitionIdException.class,
 			"List type definition ID is 0",
@@ -1650,6 +1656,16 @@ public class ObjectFieldLocalServiceTest {
 
 		// Business type attachment
 
+		String originalName = PrincipalThreadLocal.getName();
+
+		PermissionChecker originalPermissionChecker =
+			PermissionThreadLocal.getPermissionChecker();
+
+		PermissionThreadLocal.setPermissionChecker(
+			PermissionCheckerFactoryUtil.create(TestPropsValues.getUser()));
+
+		PrincipalThreadLocal.setName(TestPropsValues.getUserId());
+
 		ObjectDefinition objectDefinition =
 			ObjectDefinitionTestUtil.addCustomObjectDefinition(
 				false,
@@ -2051,6 +2067,10 @@ public class ObjectFieldLocalServiceTest {
 			).build());
 
 		_objectDefinitionLocalService.deleteObjectDefinition(objectDefinition);
+
+		PermissionThreadLocal.setPermissionChecker(originalPermissionChecker);
+
+		PrincipalThreadLocal.setName(originalName);
 	}
 
 	@Test
@@ -2150,7 +2170,8 @@ public class ObjectFieldLocalServiceTest {
 							RandomTestUtil.randomString())
 					).name(
 						"a" + RandomTestUtil.randomString()
-					).build())));
+					).build()),
+				Collections.emptyList()));
 	}
 
 	private void _addCustomObjectDefinitionWithPicklistObjectField(
@@ -2789,7 +2810,8 @@ public class ObjectFieldLocalServiceTest {
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
 				true, ObjectDefinitionConstants.SCOPE_COMPANY,
 				ObjectDefinitionConstants.STORAGE_TYPE_SALESFORCE,
-				Collections.emptyList(), Collections.emptyList());
+				Collections.emptyList(), Collections.emptyList(),
+				Collections.emptyList());
 
 		_assertReadOnlyFalse(
 			_addCustomObjectField(

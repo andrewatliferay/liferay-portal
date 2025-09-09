@@ -341,9 +341,6 @@ public class DisplayPageTemplateResourceImpl
 			throw new UnsupportedOperationException();
 		}
 
-		DisplayPageTemplateSettings displayPageTemplateSettings =
-			displayPageTemplate.getDisplayPageTemplateSettings();
-
 		long classTypeId = _getClassTypeId(contentTypeReference, groupId);
 
 		if (!className.equals(layoutPageTemplateEntry.getClassName()) ||
@@ -380,14 +377,20 @@ public class DisplayPageTemplateResourceImpl
 		Layout layout = _layoutLocalService.getLayout(
 			layoutPageTemplateEntry.getPlid());
 
+		UnicodeProperties typeSettingsUnicodeProperties = _getUnicodeProperties(
+			displayPageTemplate.getDisplayPageTemplateSettings());
+
+		layout = _layoutLocalService.updateLayout(
+			layout.getGroupId(), layout.isPrivateLayout(), layout.getLayoutId(),
+			typeSettingsUnicodeProperties.toString());
+
 		layout = LayoutUtil.updateContentLayout(
 			_cetManager, layout, layout.getNameMap(), layout.getTitleMap(),
 			layout.getDescriptionMap(),
-			_getRobotsMap(displayPageTemplateSettings),
+			_getRobotsMap(displayPageTemplate.getDisplayPageTemplateSettings()),
 			LocalizedMapUtil.getLocalizedMap(
 				displayPageTemplate.getFriendlyUrlPath_i18n()),
 			displayPageTemplate.getPageSpecifications(),
-			_getUnicodeProperties(displayPageTemplateSettings),
 			_getServiceContext(displayPageTemplate, groupId));
 
 		if (!layoutPageTemplateEntry.isApproved() &&
@@ -471,8 +474,8 @@ public class DisplayPageTemplateResourceImpl
 
 		Layout layout = LayoutUtil.addContentLayout(
 			_cetManager, groupId, displayPageTemplate.getPageSpecifications(),
-			false, nameMap, nameMap, null,
-			_getRobotsMap(displayPageTemplateSettings),
+			LayoutConstants.DEFAULT_PARENT_LAYOUT_ID, false, nameMap, nameMap,
+			null, _getRobotsMap(displayPageTemplateSettings),
 			LayoutConstants.TYPE_ASSET_DISPLAY,
 			_getUnicodeProperties(displayPageTemplateSettings), true, true,
 			LocalizedMapUtil.getLocalizedMap(
@@ -590,6 +593,7 @@ public class DisplayPageTemplateResourceImpl
 			groupId, contextHttpServletRequest, null
 		).build();
 
+		serviceContext.setCompanyId(contextCompany.getCompanyId());
 		serviceContext.setCreateDate(displayPageTemplate.getDateCreated());
 		serviceContext.setModifiedDate(displayPageTemplate.getDateModified());
 		serviceContext.setUserId(contextUser.getUserId());

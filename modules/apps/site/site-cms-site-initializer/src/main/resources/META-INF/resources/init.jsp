@@ -25,6 +25,9 @@ page import="com.liferay.site.cms.site.initializer.internal.display.context.View
 page import="com.liferay.site.cms.site.initializer.internal.display.context.ViewFilesSectionDisplayContext" %><%@
 page import="com.liferay.site.cms.site.initializer.internal.display.context.ViewFolderSectionDisplayContext" %><%@
 page import="com.liferay.site.cms.site.initializer.internal.display.context.ViewHomeQuickActionsDisplayContext" %><%@
+page import="com.liferay.site.cms.site.initializer.internal.display.context.ViewHomeRecentAssetsSectionDisplayContext" %><%@
+page import="com.liferay.site.cms.site.initializer.internal.display.context.ViewHomeSearchBarDisplayContext" %><%@
+page import="com.liferay.site.cms.site.initializer.internal.display.context.ViewHomeWorkflowTasksDisplayContext" %><%@
 page import="com.liferay.site.cms.site.initializer.internal.display.context.ViewRecycleBinSectionDisplayContext" %><%@
 page import="com.liferay.site.cms.site.initializer.internal.display.context.ViewSharedWithMeSectionDisplayContext" %><%@
 page import="com.liferay.site.cms.site.initializer.internal.display.context.ViewSpaceContentsSummarySectionDisplayContext" %><%@
@@ -37,8 +40,6 @@ page import="com.liferay.site.cms.site.initializer.internal.display.context.View
 page import="com.liferay.site.cms.site.initializer.internal.display.context.ViewTagsDisplayContext" %><%@
 page import="com.liferay.site.cms.site.initializer.internal.display.context.ViewVersionHistoryDisplayContext" %><%@
 page import="com.liferay.site.cms.site.initializer.internal.display.context.ViewVocabulariesDisplayContext" %>
-
-<%@ page import="java.util.Map" %>
 
 <liferay-theme:defineObjects />
 

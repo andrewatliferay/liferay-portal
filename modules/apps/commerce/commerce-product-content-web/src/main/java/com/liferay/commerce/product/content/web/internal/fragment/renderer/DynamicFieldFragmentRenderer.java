@@ -71,7 +71,7 @@ public class DynamicFieldFragmentRenderer implements FragmentRenderer {
 	}
 
 	@Override
-	public String getConfiguration(
+	public JSONObject getConfigurationJSONObject(
 		FragmentRendererContext fragmentRendererContext) {
 
 		ResourceBundle resourceBundle = ResourceBundleUtil.getBundle(
@@ -93,7 +93,7 @@ public class DynamicFieldFragmentRenderer implements FragmentRenderer {
 				_log.debug(jsonException);
 			}
 
-			return StringPool.BLANK;
+			return null;
 		}
 	}
 
@@ -208,8 +208,8 @@ public class DynamicFieldFragmentRenderer implements FragmentRenderer {
 
 		return GetterUtil.getString(
 			_fragmentEntryConfigurationParser.getFieldValue(
-				fragmentEntryLink.getConfiguration(),
-				fragmentEntryLink.getEditableValues(),
+				fragmentEntryLink.getConfigurationJSONObject(),
+				fragmentEntryLink.getEditableValuesJSONObject(),
 				LocaleUtil.getMostRelevantLocale(), name));
 	}
 
@@ -269,41 +269,38 @@ public class DynamicFieldFragmentRenderer implements FragmentRenderer {
 	private String _getFieldLabel(
 		FragmentEntryLink fragmentEntryLink, String field) {
 
-		try {
-			JSONObject configurationJSONObject = _jsonFactory.createJSONObject(
-				fragmentEntryLink.getConfiguration());
+		JSONObject configurationJSONObject =
+			fragmentEntryLink.getConfigurationJSONObject();
 
-			JSONArray fieldSetsJSONArray = configurationJSONObject.getJSONArray(
-				"fieldSets");
-
-			JSONArray fieldsJSONArray = fieldSetsJSONArray.getJSONObject(
-				0
-			).getJSONArray(
-				"fields"
-			);
-
-			JSONObject typeOptionsJSONObject = fieldsJSONArray.getJSONObject(
-				0
-			).getJSONObject(
-				"typeOptions"
-			);
-
-			JSONArray validValuesJSONArray = typeOptionsJSONObject.getJSONArray(
-				"validValues");
-
-			for (Object validValueObject : validValuesJSONArray) {
-				JSONObject validValueJSONObject = (JSONObject)validValueObject;
-
-				String value = validValueJSONObject.getString("value");
-
-				if (value.equals(field)) {
-					return validValueJSONObject.getString("label");
-				}
-			}
+		if (configurationJSONObject == null) {
+			return StringPool.BLANK;
 		}
-		catch (JSONException jsonException) {
-			if (_log.isDebugEnabled()) {
-				_log.debug(jsonException);
+
+		JSONArray fieldSetsJSONArray = configurationJSONObject.getJSONArray(
+			"fieldSets");
+
+		JSONArray fieldsJSONArray = fieldSetsJSONArray.getJSONObject(
+			0
+		).getJSONArray(
+			"fields"
+		);
+
+		JSONObject typeOptionsJSONObject = fieldsJSONArray.getJSONObject(
+			0
+		).getJSONObject(
+			"typeOptions"
+		);
+
+		JSONArray validValuesJSONArray = typeOptionsJSONObject.getJSONArray(
+			"validValues");
+
+		for (Object validValueObject : validValuesJSONArray) {
+			JSONObject validValueJSONObject = (JSONObject)validValueObject;
+
+			String value = validValueJSONObject.getString("value");
+
+			if (value.equals(field)) {
+				return validValueJSONObject.getString("label");
 			}
 		}
 

@@ -8,7 +8,6 @@ package com.liferay.site.cms.site.initializer.internal.display.context.test;
 import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
 import com.liferay.fragment.renderer.FragmentRenderer;
 import com.liferay.frontend.data.set.model.FDSActionDropdownItem;
-import com.liferay.object.constants.ObjectEntryFolderConstants;
 import com.liferay.object.constants.ObjectFolderConstants;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.test.rule.AggregateTestRule;
@@ -55,12 +54,18 @@ public class ViewRecycleBinSectionDisplayContextTest
 			getFDSActionDropdownItems();
 
 		Assert.assertEquals(
-			fdsActionDropdownItems.toString(), 1,
+			fdsActionDropdownItems.toString(), 3,
 			fdsActionDropdownItems.size());
 
 		assertFDSActionDropdownItem(
-			fdsActionDropdownItems.get(0), "trash", "delete", "delete",
+			fdsActionDropdownItems.get(0), "view", "actionLinkFolder",
+			"view-folder", "get", "item");
+		assertFDSActionDropdownItem(
+			fdsActionDropdownItems.get(1), "trash", "delete", "delete",
 			"delete", "item");
+		assertFDSActionDropdownItem(
+			fdsActionDropdownItems.get(2), "restore", "restore", "restore",
+			"restore", "item");
 	}
 
 	@Override
@@ -86,11 +91,6 @@ public class ViewRecycleBinSectionDisplayContextTest
 			ObjectFolderConstants.EXTERNAL_REFERENCE_CODE_CONTENT_STRUCTURES,
 			ObjectFolderConstants.EXTERNAL_REFERENCE_CODE_FILE_TYPES
 		};
-	}
-
-	@Override
-	protected String getRootObjectEntryFolderExternalReferenceCode() {
-		return ObjectEntryFolderConstants.EXTERNAL_REFERENCE_CODE_FILES;
 	}
 
 	@Override

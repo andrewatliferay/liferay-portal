@@ -93,6 +93,16 @@ const assertErrorToast = async () => {
 };
 
 describe('SpaceSitesModal', () => {
+	const {ResizeObserver: ResizeObserverOriginal} = window;
+
+	beforeAll(() => {
+		window.ResizeObserver = jest.fn().mockImplementation(() => ({
+			disconnect: jest.fn(),
+			observe: jest.fn(),
+			unobserve: jest.fn(),
+		}));
+	});
+
 	beforeEach(() => {
 		jest.clearAllMocks();
 
@@ -109,10 +119,11 @@ describe('SpaceSitesModal', () => {
 		mockConnectSiteToSpace.mockImplementation(
 			async (_groupId, siteId, searchable) => ({
 				data: {
-					externalReferenceCode: '2',
+					externalReferenceCode:
+						mockUnconnectedSite.externalReferenceCode,
 					id: siteId,
-					logo: 'logo2.png',
-					name: 'Connected Site 2',
+					logo: mockUnconnectedSite.logo,
+					name: mockUnconnectedSite.name,
 					searchable: !!JSON.parse(searchable || 'false'),
 				},
 				error: null,
@@ -124,13 +135,24 @@ describe('SpaceSitesModal', () => {
 		});
 	});
 
+	afterAll(() => {
+		window.ResizeObserver = ResizeObserverOriginal;
+		jest.restoreAllMocks();
+	});
+
 	afterEach(() => {
 		jest.restoreAllMocks();
 		mockedOpenToast.mockClear();
 	});
 
-	it('renders the modal header', async () => {
+	it('checks the accessibility of the modal', async () => {
 		const {container} = renderComponent();
+
+		await checkAccessibility({bestPractices: true, context: container});
+	});
+
+	it('renders the modal header', async () => {
+		renderComponent();
 
 		expect(screen.getByText('all-sites')).toBeInTheDocument();
 
@@ -142,8 +164,6 @@ describe('SpaceSitesModal', () => {
 
 		expect(await screen.findByText('Connected Site 1')).toBeInTheDocument();
 		expect(await screen.findByText('Connected Site 2')).toBeInTheDocument();
-
-		await checkAccessibility({bestPractices: true, context: container});
 	});
 
 	it('displays an empty state message when no sites are connected', async () => {
@@ -172,12 +192,10 @@ describe('SpaceSitesModal', () => {
 				expect(mockGetAllSites).toHaveBeenCalled();
 			});
 
-			await userEvent.click(screen.getByRole('combobox', {name: 'site'}));
+			await userEvent.click(screen.getByPlaceholderText('select-a-site'));
 
 			await userEvent.click(
-				await screen.findByRole('option', {
-					name: mockUnconnectedSite.name,
-				})
+				screen.getByRole('option', {name: mockUnconnectedSite.name})
 			);
 
 			await userEvent.click(
@@ -187,12 +205,12 @@ describe('SpaceSitesModal', () => {
 			await waitFor(() => {
 				expect(mockConnectSiteToSpace).toHaveBeenCalledWith(
 					DEFAULT_PROPS.groupId,
-					'3'
+					mockUnconnectedSite.id
 				);
 			});
 
 			expect(
-				await screen.findByText(mockUnconnectedSite.name)
+				screen.getByText(mockUnconnectedSite.name)
 			).toBeInTheDocument();
 		});
 
@@ -209,12 +227,14 @@ describe('SpaceSitesModal', () => {
 
 			renderComponent();
 
-			await userEvent.click(screen.getByRole('combobox', {name: 'site'}));
+			await waitFor(() => {
+				expect(mockGetAllSites).toHaveBeenCalled();
+			});
+
+			await userEvent.click(screen.getByPlaceholderText('select-a-site'));
 
 			await userEvent.click(
-				await screen.findByRole('option', {
-					name: mockUnconnectedSite.name,
-				})
+				screen.getByRole('option', {name: mockUnconnectedSite.name})
 			);
 
 			await userEvent.click(

@@ -22,6 +22,7 @@ import com.liferay.layout.page.template.model.LayoutPageTemplateEntry;
 import com.liferay.layout.page.template.service.LayoutPageTemplateEntryLocalService;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.portal.kernel.feature.flag.FeatureFlagManagerUtil;
+import com.liferay.portal.kernel.model.CustomizedPages;
 import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.model.LayoutConstants;
@@ -284,9 +285,10 @@ public class SitePageResourceImpl extends BaseSitePageResourceImpl {
 
 		ServiceContext serviceContext = ServiceContextUtil.createServiceContext(
 			sitePage.getTaxonomyCategoryItemExternalReferences(),
-			sitePage.getDateCreated(), groupId, contextHttpServletRequest,
-			sitePage.getKeywords(), sitePage.getDateModified(),
-			contextUser.getUserId(), sitePage.getUuid());
+			contextCompany.getCompanyId(), sitePage.getDateCreated(), groupId,
+			contextHttpServletRequest, sitePage.getKeywords(),
+			sitePage.getDateModified(), contextUser.getUserId(),
+			sitePage.getUuid());
 
 		_validatePageSpecificationExternalReferenceCode(
 			serviceContext, sitePage);
@@ -301,8 +303,12 @@ public class SitePageResourceImpl extends BaseSitePageResourceImpl {
 
 		if (Objects.equals(sitePage.getType(), SitePage.Type.CONTENT_PAGE)) {
 			layout = LayoutUtil.addContentLayout(
-				_cetManager, groupId, sitePage.getPageSpecifications(), false,
-				nameMap, null, null, null,
+				_cetManager, groupId, sitePage.getPageSpecifications(),
+				_getParentLayoutId(
+					LayoutConstants.DEFAULT_PARENT_LAYOUT_ID, groupId,
+					sitePage.getParentSitePageExternalReferenceCode(),
+					serviceContext),
+				false, nameMap, null, null, null,
 				SitePageTypeUtil.toInternalType(sitePage.getType()),
 				typeSettingsUnicodeProperties,
 				_isHiddenFromNavigation(false, sitePage.getPageSettings()),
@@ -313,10 +319,11 @@ public class SitePageResourceImpl extends BaseSitePageResourceImpl {
 		}
 		else {
 			layout = LayoutUtil.addPortletLayout(
-				sitePage.getExternalReferenceCode(), groupId,
+				_cetManager, sitePage.getExternalReferenceCode(), groupId,
 				_getParentLayoutId(
 					LayoutConstants.DEFAULT_PARENT_LAYOUT_ID, groupId,
-					sitePage.getParentSitePageExternalReferenceCode()),
+					sitePage.getParentSitePageExternalReferenceCode(),
+					serviceContext),
 				nameMap, typeSettingsUnicodeProperties,
 				_isHiddenFromNavigation(false, sitePage.getPageSettings()),
 				LocalizedMapUtil.getLocalizedMap(
@@ -338,7 +345,8 @@ public class SitePageResourceImpl extends BaseSitePageResourceImpl {
 
 	private long _getParentLayoutId(
 			long defaultParentLayoutId, long groupId,
-			String parentSitePageExternalReferenceCode)
+			String parentSitePageExternalReferenceCode,
+			ServiceContext serviceContext)
 		throws Exception {
 
 		if (parentSitePageExternalReferenceCode == null) {
@@ -349,12 +357,8 @@ public class SitePageResourceImpl extends BaseSitePageResourceImpl {
 			return LayoutConstants.DEFAULT_PARENT_LAYOUT_ID;
 		}
 
-		Layout layout = _layoutService.fetchLayoutByExternalReferenceCode(
-			parentSitePageExternalReferenceCode, groupId);
-
-		if (layout == null) {
-			throw new UnsupportedOperationException();
-		}
+		Layout layout = _layoutService.getOrAddEmptyLayout(
+			parentSitePageExternalReferenceCode, groupId, serviceContext);
 
 		return layout.getLayoutId();
 	}
@@ -385,12 +389,35 @@ public class SitePageResourceImpl extends BaseSitePageResourceImpl {
 		WidgetPageSettings widgetPageSettings =
 			(WidgetPageSettings)pageSettings;
 
-		return UnicodePropertiesBuilder.create(
-			true
-		).setProperty(
-			LayoutTypePortletConstants.LAYOUT_TEMPLATE_ID,
-			widgetPageSettings.getLayoutTemplateId()
-		).build();
+		UnicodePropertiesBuilder.UnicodePropertiesWrapper
+			unicodePropertiesWrapper = UnicodePropertiesBuilder.create(
+				true
+			).setProperty(
+				LayoutConstants.CUSTOMIZABLE_LAYOUT,
+				String.valueOf(
+					GetterUtil.getBoolean(widgetPageSettings.getCustomizable()))
+			);
+
+		if (widgetPageSettings.getLayoutTemplateId() != null) {
+			unicodePropertiesWrapper.setProperty(
+				LayoutTypePortletConstants.LAYOUT_TEMPLATE_ID,
+				widgetPageSettings.getLayoutTemplateId());
+		}
+
+		String[] customizableSectionIds =
+			widgetPageSettings.getCustomizableSectionIds();
+
+		if (ArrayUtil.isEmpty(customizableSectionIds)) {
+			return unicodePropertiesWrapper.build();
+		}
+
+		for (String customizableSectionId : customizableSectionIds) {
+			unicodePropertiesWrapper.setProperty(
+				CustomizedPages.namespaceColumnId(customizableSectionId),
+				"true");
+		}
+
+		return unicodePropertiesWrapper.build();
 	}
 
 	private boolean _isHiddenFromNavigation(
@@ -432,10 +459,10 @@ public class SitePageResourceImpl extends BaseSitePageResourceImpl {
 
 		ServiceContext serviceContext = ServiceContextUtil.createServiceContext(
 			sitePage.getTaxonomyCategoryItemExternalReferences(),
-			sitePage.getDateCreated(), layout.getGroupId(),
-			contextHttpServletRequest, sitePage.getKeywords(),
-			sitePage.getDateModified(), contextUser.getUserId(),
-			sitePage.getUuid());
+			contextCompany.getCompanyId(), sitePage.getDateCreated(),
+			layout.getGroupId(), contextHttpServletRequest,
+			sitePage.getKeywords(), sitePage.getDateModified(),
+			contextUser.getUserId(), sitePage.getUuid());
 
 		serviceContext.setAttribute(
 			"hidden",
@@ -445,7 +472,8 @@ public class SitePageResourceImpl extends BaseSitePageResourceImpl {
 			"parentLayoutId",
 			_getParentLayoutId(
 				layout.getParentLayoutId(), layout.getGroupId(),
-				sitePage.getParentSitePageExternalReferenceCode()));
+				sitePage.getParentSitePageExternalReferenceCode(),
+				serviceContext));
 
 		if (Objects.equals(sitePage.getType(), SitePage.Type.CONTENT_PAGE)) {
 			layout = LayoutUtil.updateContentLayout(

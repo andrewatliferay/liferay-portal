@@ -60,7 +60,7 @@ public class KBArticleNavigationFragmentRenderer implements FragmentRenderer {
 	}
 
 	@Override
-	public String getConfiguration(
+	public JSONObject getConfigurationJSONObject(
 		FragmentRendererContext fragmentRendererContext) {
 
 		return JSONUtil.put(
@@ -96,8 +96,7 @@ public class KBArticleNavigationFragmentRenderer implements FragmentRenderer {
 								).put(
 									"type", "number"
 								))
-						))))
-		).toString();
+						)))));
 	}
 
 	@Override
@@ -207,8 +206,8 @@ public class KBArticleNavigationFragmentRenderer implements FragmentRenderer {
 
 			JSONObject jsonObject =
 				(JSONObject)_fragmentEntryConfigurationParser.getFieldValue(
-					getConfiguration(fragmentRendererContext),
-					fragmentEntryLink.getEditableValues(),
+					getConfigurationJSONObject(fragmentRendererContext),
+					fragmentEntryLink.getEditableValuesJSONObject(),
 					fragmentRendererContext.getLocale(), "itemSelector");
 
 			if ((jsonObject != null) && jsonObject.has("className") &&
@@ -255,8 +254,8 @@ public class KBArticleNavigationFragmentRenderer implements FragmentRenderer {
 
 		return GetterUtil.getInteger(
 			_fragmentEntryConfigurationParser.getFieldValue(
-				getConfiguration(fragmentRendererContext),
-				fragmentEntryLink.getEditableValues(),
+				getConfigurationJSONObject(fragmentRendererContext),
+				fragmentEntryLink.getEditableValuesJSONObject(),
 				fragmentRendererContext.getLocale(), "maxNestingLevel"),
 			_MAX_NESTING_LEVEL);
 	}

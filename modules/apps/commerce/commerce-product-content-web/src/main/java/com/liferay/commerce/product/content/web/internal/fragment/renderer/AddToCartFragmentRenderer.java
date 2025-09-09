@@ -16,7 +16,6 @@ import com.liferay.fragment.renderer.FragmentRendererContext;
 import com.liferay.fragment.util.configuration.FragmentEntryConfigurationParser;
 import com.liferay.info.constants.InfoDisplayWebKeys;
 import com.liferay.petra.string.StringBundler;
-import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.json.JSONException;
 import com.liferay.portal.kernel.json.JSONFactory;
 import com.liferay.portal.kernel.json.JSONObject;
@@ -61,7 +60,7 @@ public class AddToCartFragmentRenderer implements FragmentRenderer {
 	}
 
 	@Override
-	public String getConfiguration(
+	public JSONObject getConfigurationJSONObject(
 		FragmentRendererContext fragmentRendererContext) {
 
 		ResourceBundle resourceBundle = ResourceBundleUtil.getBundle(
@@ -83,7 +82,7 @@ public class AddToCartFragmentRenderer implements FragmentRenderer {
 				_log.debug(jsonException);
 			}
 
-			return StringPool.BLANK;
+			return null;
 		}
 	}
 
@@ -142,8 +141,8 @@ public class AddToCartFragmentRenderer implements FragmentRenderer {
 				"liferay-commerce:add-to-cart:inline",
 				GetterUtil.getBoolean(
 					_fragmentEntryConfigurationParser.getFieldValue(
-						fragmentEntryLink.getConfiguration(),
-						fragmentEntryLink.getEditableValues(),
+						fragmentEntryLink.getConfigurationJSONObject(),
+						fragmentEntryLink.getEditableValuesJSONObject(),
 						LocaleUtil.getMostRelevantLocale(), "inline")));
 
 			String namespace = (String)httpServletRequest.getAttribute(
@@ -183,8 +182,8 @@ public class AddToCartFragmentRenderer implements FragmentRenderer {
 
 		return GetterUtil.getString(
 			_fragmentEntryConfigurationParser.getFieldValue(
-				fragmentEntryLink.getConfiguration(),
-				fragmentEntryLink.getEditableValues(),
+				fragmentEntryLink.getConfigurationJSONObject(),
+				fragmentEntryLink.getEditableValuesJSONObject(),
 				LocaleUtil.getMostRelevantLocale(), name));
 	}
 

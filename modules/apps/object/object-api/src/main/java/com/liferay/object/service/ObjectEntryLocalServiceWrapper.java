@@ -604,25 +604,42 @@ public class ObjectEntryLocalServiceWrapper
 	}
 
 	@Override
+	public java.util.Map<Object, Long> getOneToManyAggregationCounts(
+			long groupId, long objectDefinitionId, long objectEntryId,
+			long objectRelationshipId, String aggregationTerm,
+			com.liferay.petra.sql.dsl.expression.Predicate predicate,
+			boolean related, String search, int start, int end)
+		throws com.liferay.portal.kernel.exception.PortalException {
+
+		return _objectEntryLocalService.getOneToManyAggregationCounts(
+			groupId, objectDefinitionId, objectEntryId, objectRelationshipId,
+			aggregationTerm, predicate, related, search, start, end);
+	}
+
+	@Override
 	public java.util.List<com.liferay.object.model.ObjectEntry>
 			getOneToManyObjectEntries(
-				long groupId, long objectRelationshipId, long primaryKey,
-				boolean related, String search, int start, int end)
+				long groupId, long objectRelationshipId,
+				com.liferay.petra.sql.dsl.expression.Predicate predicate,
+				long primaryKey, boolean related, String search, int start,
+				int end, com.liferay.portal.kernel.search.Sort[] sorts)
 		throws com.liferay.portal.kernel.exception.PortalException {
 
 		return _objectEntryLocalService.getOneToManyObjectEntries(
-			groupId, objectRelationshipId, primaryKey, related, search, start,
-			end);
+			groupId, objectRelationshipId, predicate, primaryKey, related,
+			search, start, end, sorts);
 	}
 
 	@Override
 	public int getOneToManyObjectEntriesCount(
-			long groupId, long objectRelationshipId, long primaryKey,
-			boolean related, String search)
+			long groupId, long objectRelationshipId,
+			com.liferay.petra.sql.dsl.expression.Predicate predicate,
+			long primaryKey, boolean related, String search)
 		throws com.liferay.portal.kernel.exception.PortalException {
 
 		return _objectEntryLocalService.getOneToManyObjectEntriesCount(
-			groupId, objectRelationshipId, primaryKey, related, search);
+			groupId, objectRelationshipId, predicate, primaryKey, related,
+			search);
 	}
 
 	@Override
@@ -750,6 +767,17 @@ public class ObjectEntryLocalServiceWrapper
 	}
 
 	@Override
+	public void moveObjectEntriesToTrash(
+			long userId,
+			com.liferay.object.model.ObjectEntryFolder objectEntryFolder,
+			com.liferay.portal.kernel.service.ServiceContext serviceContext)
+		throws com.liferay.portal.kernel.exception.PortalException {
+
+		_objectEntryLocalService.moveObjectEntriesToTrash(
+			userId, objectEntryFolder, serviceContext);
+	}
+
+	@Override
 	public com.liferay.object.model.ObjectEntry moveObjectEntryToTrash(
 			long userId, com.liferay.object.model.ObjectEntry objectEntry,
 			com.liferay.portal.kernel.service.ServiceContext serviceContext)
@@ -777,6 +805,27 @@ public class ObjectEntryLocalServiceWrapper
 
 		return _objectEntryLocalService.partialUpdateObjectEntry(
 			userId, objectEntryId, values, serviceContext);
+	}
+
+	@Override
+	public void restoreObjectEntriesFromTrash(
+			long userId,
+			com.liferay.object.model.ObjectEntryFolder objectEntryFolder,
+			com.liferay.portal.kernel.service.ServiceContext serviceContext)
+		throws com.liferay.portal.kernel.exception.PortalException {
+
+		_objectEntryLocalService.restoreObjectEntriesFromTrash(
+			userId, objectEntryFolder, serviceContext);
+	}
+
+	@Override
+	public com.liferay.object.model.ObjectEntry restoreObjectEntryFromTrash(
+			long userId, com.liferay.object.model.ObjectEntry objectEntry,
+			com.liferay.portal.kernel.service.ServiceContext serviceContext)
+		throws com.liferay.portal.kernel.exception.PortalException {
+
+		return _objectEntryLocalService.restoreObjectEntryFromTrash(
+			userId, objectEntry, serviceContext);
 	}
 
 	@Override

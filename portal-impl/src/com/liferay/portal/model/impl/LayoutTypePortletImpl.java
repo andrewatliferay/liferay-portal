@@ -2150,9 +2150,10 @@ public class LayoutTypePortletImpl
 
 		String instanceId = PortletIdCodec.decodeInstanceId(columnId);
 
-		if (instanceId.indexOf(StringPool.UNDERLINE) != -1) {
-			instanceId = instanceId.substring(
-				0, instanceId.indexOf(StringPool.UNDERLINE));
+		int index = instanceId.indexOf(StringPool.UNDERLINE);
+
+		if (index != -1) {
+			instanceId = instanceId.substring(0, index);
 		}
 
 		long userId = PortletIdCodec.decodeUserId(columnId);

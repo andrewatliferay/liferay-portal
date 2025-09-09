@@ -18,7 +18,13 @@ type SegmentProperty =
 	| 'First Name'
 	| 'Last Name'
 	| 'Name'
+	| 'Organization'
+	| 'Parent Organization'
+	| 'Regular Role'
 	| 'Segments'
+	| 'Site'
+	| string
+	| 'Tag'
 	| 'Type';
 
 type SegmentProperties = Partial<Record<SegmentSection, SegmentProperty[]>>;
@@ -89,20 +95,39 @@ export class SegmentEditorPage {
 
 		await body.waitFor();
 
+		// Map known label exceptions
+
+		const labelMap: Record<string, string> = {
+			'Country': 'Drag Country',
+			'Name': 'Drag Name',
+			'Organization': 'Drag Organization',
+			'Parent Organization': 'Drag Parent Organization',
+			'Segments': 'Drag Segment',
+			'Site': 'Drag Site',
+			'Tag': 'Drag Tag',
+			'Team': 'Drag Team',
+		};
+
+		const label = labelMap[property] ?? `Drag ${property}`;
+
 		// Add property to desired dropzone
 
-		if (property === 'Country') {
-			await this.page.getByLabel('Drag Country').press('Enter');
+		try {
+			await this.page.getByLabel(label, {exact: true}).press('Enter');
 		}
-		else if (property === 'Name') {
-			await this.page.getByLabel('Drag Name').press('Enter');
+		catch {
+			try {
+				await this.page
+					.getByRole('menuitem', {exact: true, name: label})
+					.press('Enter');
+			}
+			catch {
+				await this.page
+					.locator('li', {hasText: property})
+					.press('Enter');
+			}
 		}
-		else if (property === 'Segments') {
-			await this.page.getByLabel('Drag Segment').press('Enter');
-		}
-		else {
-			await this.page.locator('li', {hasText: property}).press('Enter');
-		}
+
 		await target.press('Enter');
 
 		await this.loading.waitFor();

@@ -13,6 +13,7 @@ import com.liferay.headless.asset.library.dto.v1_0.AssetLibrary;
 import com.liferay.headless.asset.library.dto.v1_0.MimeTypeLimit;
 import com.liferay.headless.asset.library.dto.v1_0.Settings;
 import com.liferay.headless.asset.library.internal.resource.v1_0.BaseAssetLibraryResourceImpl;
+import com.liferay.headless.asset.library.internal.util.AssetLibraryUtil;
 import com.liferay.petra.function.transform.TransformUtil;
 import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.service.UserGroupLocalService;
@@ -25,6 +26,7 @@ import com.liferay.portal.vulcan.dto.converter.DTOConverterContext;
 import com.liferay.portal.vulcan.fields.NestedFieldsSupplier;
 import com.liferay.portal.vulcan.util.JaxRsLinkUtil;
 import com.liferay.portal.vulcan.util.LocalizedMapUtil;
+import com.liferay.sharing.constants.SharingConfigurationConstants;
 
 import jakarta.ws.rs.core.UriInfo;
 
@@ -115,6 +117,9 @@ public class AssetLibraryDTOConverter
 								group.getGroupId())));
 				setSettings(() -> _toSettings(group));
 				setSiteId(group::getGroupId);
+				setType(
+					() -> AssetLibraryUtil.getAssetLibraryType(
+						depotEntry.getType()));
 			}
 		};
 	}
@@ -156,7 +161,8 @@ public class AssetLibraryDTOConverter
 				setMimeTypeLimits(() -> _getMimeTypeLimits(group.getGroupId()));
 				setSharingEnabled(
 					() -> GetterUtil.getBoolean(
-						unicodeProperties.get("sharingEnabled")));
+						unicodeProperties.get("sharingEnabled"),
+						SharingConfigurationConstants.SHARING_ENABLED_DEFAULT));
 				setUseCustomLanguages(
 					() -> !GetterUtil.getBoolean(
 						unicodeProperties.get("inheritLocales")));

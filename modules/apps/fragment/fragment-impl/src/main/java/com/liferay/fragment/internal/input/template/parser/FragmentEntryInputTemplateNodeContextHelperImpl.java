@@ -120,7 +120,7 @@ public class FragmentEntryInputTemplateNodeContextHelperImpl
 		if (infoForm != null) {
 			String fieldName = GetterUtil.getString(
 				_fragmentEntryConfigurationParser.getFieldValue(
-					fragmentEntryLink.getEditableValues(),
+					fragmentEntryLink.getEditableValuesJSONObject(),
 					new FragmentConfigurationField(
 						"inputFieldId", "string", "", false, "text"),
 					locale));
@@ -175,7 +175,7 @@ public class FragmentEntryInputTemplateNodeContextHelperImpl
 
 		String inputHelpText = GetterUtil.getString(
 			_fragmentEntryConfigurationParser.getFieldValue(
-				fragmentEntryLink.getEditableValues(),
+				fragmentEntryLink.getEditableValuesJSONObject(),
 				new FragmentConfigurationField(
 					"inputHelpText", "string",
 					_language.get(locale, "add-your-help-text-here"), true,
@@ -187,8 +187,8 @@ public class FragmentEntryInputTemplateNodeContextHelperImpl
 		}
 
 		String inputLabel = _getInputLabel(
-			defaultInputLabel, fragmentEntryLink.getEditableValues(), infoField,
-			locale);
+			defaultInputLabel, fragmentEntryLink.getEditableValuesJSONObject(),
+			infoField, locale);
 
 		boolean localizable = false;
 		String name = "name";
@@ -200,10 +200,16 @@ public class FragmentEntryInputTemplateNodeContextHelperImpl
 			localizable = infoField.isLocalizable();
 		}
 
+		boolean inputReadOnly = GetterUtil.getBoolean(
+			_fragmentEntryConfigurationParser.getFieldValue(
+				fragmentEntryLink.getEditableValuesJSONObject(),
+				new FragmentConfigurationField(
+					"inputReadOnly", "boolean", "false", false, "checkbox"),
+				locale));
 		String layoutMode = ParamUtil.getString(
 			httpServletRequest, "p_l_mode", Constants.VIEW);
 
-		if (Objects.equals(layoutMode, Constants.READ)) {
+		if (inputReadOnly || Objects.equals(layoutMode, Constants.READ)) {
 			readOnly = true;
 		}
 
@@ -212,7 +218,7 @@ public class FragmentEntryInputTemplateNodeContextHelperImpl
 		if (((infoField != null) && infoField.isRequired()) ||
 			GetterUtil.getBoolean(
 				_fragmentEntryConfigurationParser.getFieldValue(
-					fragmentEntryLink.getEditableValues(),
+					fragmentEntryLink.getEditableValuesJSONObject(),
 					new FragmentConfigurationField(
 						"inputRequired", "boolean", "false", false, "checkbox"),
 					locale))) {
@@ -222,14 +228,14 @@ public class FragmentEntryInputTemplateNodeContextHelperImpl
 
 		boolean inputShowHelpText = GetterUtil.getBoolean(
 			_fragmentEntryConfigurationParser.getFieldValue(
-				fragmentEntryLink.getEditableValues(),
+				fragmentEntryLink.getEditableValuesJSONObject(),
 				new FragmentConfigurationField(
 					"inputShowHelpText", "boolean", "false", false, "checkbox"),
 				locale));
 
 		boolean inputShowLabel = GetterUtil.getBoolean(
 			_fragmentEntryConfigurationParser.getFieldValue(
-				fragmentEntryLink.getEditableValues(),
+				fragmentEntryLink.getEditableValuesJSONObject(),
 				new FragmentConfigurationField(
 					"inputShowLabel", "boolean", "true", false, "checkbox"),
 				locale));
@@ -790,15 +796,15 @@ public class FragmentEntryInputTemplateNodeContextHelperImpl
 	}
 
 	private String _getInputLabel(
-		String defaultInputLabel, String editableValues, InfoField<?> infoField,
-		Locale locale) {
+		String defaultInputLabel, JSONObject editableValuesJSONObject,
+		InfoField<?> infoField, Locale locale) {
 
 		String inputLabel = null;
 
 		JSONObject inputLabelJSONObject =
 			(JSONObject)
 				_fragmentEntryConfigurationParser.getConfigurationFieldValue(
-					editableValues, "inputLabel",
+					editableValuesJSONObject, "inputLabel",
 					FragmentConfigurationFieldDataType.OBJECT);
 
 		if (inputLabelJSONObject != null) {
