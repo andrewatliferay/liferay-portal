@@ -117,30 +117,35 @@ public class ObjectRelatedModelsProviderTest {
 			Arrays.asList(
 				new LongTextObjectFieldBuilder(
 				).labelMap(
-					LocalizedMapUtil.getLocalizedMap(
-						RandomTestUtil.randomString())
+					RandomTestUtil.randomLocaleStringMap()
 				).name(
-					"longText"
+					"localizedLongText"
 				).localized(
 					true
 				).build(),
 				new RichTextObjectFieldBuilder(
 				).labelMap(
-					LocalizedMapUtil.getLocalizedMap(
-						RandomTestUtil.randomString())
+					RandomTestUtil.randomLocaleStringMap()
 				).name(
-					"richText"
+					"localizedRichText"
 				).localized(
 					true
 				).build(),
 				new TextObjectFieldBuilder(
 				).labelMap(
-					LocalizedMapUtil.getLocalizedMap(
-						RandomTestUtil.randomString())
+					RandomTestUtil.randomLocaleStringMap()
 				).name(
-					"text"
+					"localizedText"
 				).localized(
 					true
+				).build(),
+				new TextObjectFieldBuilder(
+				).indexed(
+					true
+				).labelMap(
+					RandomTestUtil.randomLocaleStringMap()
+				).name(
+					"text"
 				).build()));
 
 		_setUser(TestPropsValues.getUser());
@@ -270,7 +275,7 @@ public class ObjectRelatedModelsProviderTest {
 		ObjectEntry objectEntry3 = _addObjectEntry(
 			_objectDefinition2,
 			HashMapBuilder.<String, Serializable>put(
-				"able", "First Entry"
+				"text", "First Entry"
 			).put(
 				_relationshipObjectField.getName(),
 				objectEntry1.getObjectEntryId()
@@ -284,7 +289,7 @@ public class ObjectRelatedModelsProviderTest {
 		_addObjectEntry(
 			_objectDefinition2,
 			HashMapBuilder.<String, Serializable>put(
-				"able", "Second Entry"
+				"text", "Second Entry"
 			).put(
 				_relationshipObjectField.getName(),
 				objectEntry1.getObjectEntryId()
@@ -298,7 +303,7 @@ public class ObjectRelatedModelsProviderTest {
 		_updateObjectEntry(
 			objectEntry2.getObjectEntryId(),
 			HashMapBuilder.<String, Serializable>put(
-				"able", "Third Entry"
+				"text", "Third Entry"
 			).put(
 				_relationshipObjectField.getName(),
 				objectEntry1.getObjectEntryId()
@@ -313,17 +318,17 @@ public class ObjectRelatedModelsProviderTest {
 
 		Map<String, Serializable> expectedLocalizedValues =
 			HashMapBuilder.<String, Serializable>put(
-				"longText_i18n",
+				"localizedLongText_i18n",
 				HashMapBuilder.put(
 					"en_US", RandomTestUtil.randomString()
 				).build()
 			).put(
-				"richText_i18n",
+				"localizedRichText_i18n",
 				HashMapBuilder.put(
 					"en_US", RandomTestUtil.randomString()
 				).build()
 			).put(
-				"text_i18n",
+				"localizedText_i18n",
 				HashMapBuilder.put(
 					"en_US", "en_US " + RandomTestUtil.randomString()
 				).build()
@@ -343,14 +348,14 @@ public class ObjectRelatedModelsProviderTest {
 			_objectEntryLocalService.getValues(objectEntry5.getObjectEntryId());
 
 		Assert.assertEquals(
-			expectedLocalizedValues.get("longText_i18n"),
-			actualLocalizedValues.get("longText_i18n"));
+			expectedLocalizedValues.get("localizedLongText_i18n"),
+			actualLocalizedValues.get("localizedLongText_i18n"));
 		Assert.assertEquals(
-			expectedLocalizedValues.get("richText_i18n"),
-			actualLocalizedValues.get("richText_i18n"));
+			expectedLocalizedValues.get("localizedRichText_i18n"),
+			actualLocalizedValues.get("localizedRichText_i18n"));
 		Assert.assertEquals(
-			expectedLocalizedValues.get("text_i18n"),
-			actualLocalizedValues.get("text_i18n"));
+			expectedLocalizedValues.get("localizedText_i18n"),
+			actualLocalizedValues.get("localizedText_i18n"));
 
 		_objectRelatedModelsProvider.disassociateRelatedModels(
 			TestPropsValues.getUserId(),
@@ -361,14 +366,14 @@ public class ObjectRelatedModelsProviderTest {
 			objectEntry5.getObjectEntryId());
 
 		Assert.assertEquals(
-			expectedLocalizedValues.get("longText_i18n"),
-			actualLocalizedValues.get("longText_i18n"));
+			expectedLocalizedValues.get("localizedLongText_i18n"),
+			actualLocalizedValues.get("localizedLongText_i18n"));
 		Assert.assertEquals(
-			expectedLocalizedValues.get("richText_i18n"),
-			actualLocalizedValues.get("richText_i18n"));
+			expectedLocalizedValues.get("localizedRichText_i18n"),
+			actualLocalizedValues.get("localizedRichText_i18n"));
 		Assert.assertEquals(
-			expectedLocalizedValues.get("text_i18n"),
-			actualLocalizedValues.get("text_i18n"));
+			expectedLocalizedValues.get("localizedText_i18n"),
+			actualLocalizedValues.get("localizedText_i18n"));
 
 		_objectEntryLocalService.deleteObjectEntry(objectEntry5);
 
@@ -436,7 +441,8 @@ public class ObjectRelatedModelsProviderTest {
 					ObjectFieldUtil.createObjectField(
 						ObjectFieldConstants.BUSINESS_TYPE_TEXT,
 						ObjectFieldConstants.DB_TYPE_STRING,
-						RandomTestUtil.randomString(), StringUtil.randomId())));
+						RandomTestUtil.randomString(), StringUtil.randomId())),
+				Collections.emptyList());
 
 		scopeSiteObjectDefinition =
 			_objectDefinitionLocalService.publishCustomObjectDefinition(
@@ -590,7 +596,8 @@ public class ObjectRelatedModelsProviderTest {
 				LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
 				true, ObjectDefinitionConstants.SCOPE_SITE,
 				ObjectDefinitionConstants.STORAGE_TYPE_DEFAULT,
-				Collections.emptyList(), Collections.emptyList());
+				Collections.emptyList(), Collections.emptyList(),
+				Collections.emptyList());
 
 		ObjectField objectField = _objectFieldLocalService.addCustomObjectField(
 			null, TestPropsValues.getUserId(), 0,
@@ -653,6 +660,15 @@ public class ObjectRelatedModelsProviderTest {
 			_objectRelatedModelsProvider.getUnrelatedModelsCount(
 				0, 0, _objectDefinition1, objectEntry1.getObjectEntryId(),
 				objectRelationship.getObjectRelationshipId(), null));
+	}
+
+	@FeatureFlag("LPD-53981")
+	@Test
+	public void testRestoreObjectEntryFromTrash() throws Exception {
+		_testRestoreObjectEntryFromTrash(
+			ObjectRelationshipConstants.TYPE_MANY_TO_MANY);
+		_testRestoreObjectEntryFromTrash(
+			ObjectRelationshipConstants.TYPE_ONE_TO_MANY);
 	}
 
 	private AccountEntry _addAccountEntry(long userId) throws Exception {
@@ -756,7 +772,7 @@ public class ObjectRelatedModelsProviderTest {
 		Assert.assertEquals(
 			0,
 			_objectRelatedModelsProvider.getRelatedModelsCount(
-				0, _objectRelationship.getObjectRelationshipId(),
+				0, _objectRelationship.getObjectRelationshipId(), null,
 				parentObjectEntry.getObjectEntryId(), null));
 
 		_resourcePermissionLocalService.setResourcePermissions(
@@ -767,7 +783,7 @@ public class ObjectRelatedModelsProviderTest {
 		Assert.assertEquals(
 			expectedRelatedModelsCount,
 			_objectRelatedModelsProvider.getRelatedModelsCount(
-				0, _objectRelationship.getObjectRelationshipId(),
+				0, _objectRelationship.getObjectRelationshipId(), null,
 				parentObjectEntry.getObjectEntryId(), null));
 
 		_resourcePermissionLocalService.removeResourcePermission(
@@ -1210,6 +1226,45 @@ public class ObjectRelatedModelsProviderTest {
 		Assert.assertNull(
 			_objectRelationshipLocalService.fetchObjectRelationship(
 				reverseObjectRelationship.getObjectRelationshipId()));
+	}
+
+	private void _testRestoreObjectEntryFromTrash(String relationshipType)
+		throws Exception {
+
+		ObjectDefinition objectDefinition1 =
+			ObjectDefinitionTestUtil.publishObjectDefinition();
+		ObjectDefinition objectDefinition2 =
+			ObjectDefinitionTestUtil.publishObjectDefinition();
+
+		_addObjectRelationship(
+			objectDefinition1, objectDefinition2,
+			ObjectRelationshipConstants.DELETION_TYPE_CASCADE,
+			relationshipType);
+
+		ObjectEntry objectEntry1 = _addObjectEntry(
+			objectDefinition1, Collections.emptyMap());
+
+		ObjectEntry objectEntry2 = _addRelatedObjectEntry(
+			objectDefinition2, objectEntry1, relationshipType);
+
+		objectEntry1 = _objectEntryLocalService.moveObjectEntryToTrash(
+			TestPropsValues.getUserId(), objectEntry1,
+			ServiceContextTestUtil.getServiceContext());
+
+		_assertObjectEntryStatus(
+			WorkflowConstants.STATUS_IN_TRASH, objectEntry1);
+
+		_assertObjectEntryStatus(
+			WorkflowConstants.STATUS_IN_TRASH, objectEntry2);
+
+		_objectEntryLocalService.restoreObjectEntryFromTrash(
+			TestPropsValues.getUserId(), objectEntry1,
+			ServiceContextTestUtil.getServiceContext());
+
+		_assertObjectEntryStatus(
+			WorkflowConstants.STATUS_APPROVED, objectEntry1);
+		_assertObjectEntryStatus(
+			WorkflowConstants.STATUS_APPROVED, objectEntry2);
 	}
 
 	private ObjectEntry _updateObjectEntry(

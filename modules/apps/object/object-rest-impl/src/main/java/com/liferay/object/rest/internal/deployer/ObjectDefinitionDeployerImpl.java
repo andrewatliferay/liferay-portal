@@ -218,7 +218,8 @@ public class ObjectDefinitionDeployerImpl implements ObjectDefinitionDeployer {
 			_objectDefinitionsMap.get(restContextPath),
 			_objectDefinitionLocalService, _objectEntryLocalService,
 			_objectEntryManagerRegistry, _objectFieldLocalService,
-			_objectRelationshipService, _objectScopeProviderRegistry,
+			_objectRelationshipLocalService, _objectRelationshipService,
+			_objectScopeProviderRegistry,
 			_systemObjectDefinitionManagerRegistry);
 	}
 
@@ -699,6 +700,7 @@ public class ObjectDefinitionDeployerImpl implements ObjectDefinitionDeployer {
 											serviceRegistration) {
 
 								return new ObjectEntryRelatedObjectsResourceImpl(
+									_entityModelProvider,
 									_objectDefinitionLocalService,
 									_objectEntryLocalService,
 									_objectEntryManagerRegistry,

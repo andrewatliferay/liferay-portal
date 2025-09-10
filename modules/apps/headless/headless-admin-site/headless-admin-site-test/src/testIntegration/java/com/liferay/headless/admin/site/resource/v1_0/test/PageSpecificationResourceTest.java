@@ -8,6 +8,7 @@ package com.liferay.headless.admin.site.resource.v1_0.test;
 import com.liferay.arquillian.extension.junit.bridge.junit.Arquillian;
 import com.liferay.headless.admin.site.client.dto.v1_0.ContainerPageElementDefinition;
 import com.liferay.headless.admin.site.client.dto.v1_0.ContentPageSpecification;
+import com.liferay.headless.admin.site.client.dto.v1_0.FavIcon;
 import com.liferay.headless.admin.site.client.dto.v1_0.PageElement;
 import com.liferay.headless.admin.site.client.dto.v1_0.PageElementDefinition;
 import com.liferay.headless.admin.site.client.dto.v1_0.PageExperience;
@@ -700,7 +701,9 @@ public class PageSpecificationResourceTest
 			PageSpecification.Type.WIDGET_PAGE_SPECIFICATION,
 			widgetPageSpecification.getType());
 
-		Assert.assertNull(widgetPageSpecification.getWidgetPageSections());
+		Assert.assertTrue(
+			ArrayUtil.isNotEmpty(
+				widgetPageSpecification.getWidgetPageSections()));
 	}
 
 	private ContentPageSpecification _getContentPageSpecification(
@@ -888,7 +891,8 @@ public class PageSpecificationResourceTest
 
 		if (!typeUtility) {
 			SettingsTestUtil.modifySettings(
-				serviceContext, pageSpecification.getSettings());
+				FavIcon.FavIconType.CLIENT_EXTENSION, serviceContext,
+				pageSpecification.getSettings());
 
 			return;
 		}
@@ -1074,21 +1078,24 @@ public class PageSpecificationResourceTest
 			Layout layout, ServiceContext serviceContext)
 		throws Exception {
 
-		PageSpecification pageSpecification =
-			pageSpecificationResource.
-				getSiteSiteByExternalReferenceCodePageSpecification(
-					testGroup.getExternalReferenceCode(),
-					layout.getExternalReferenceCode());
+		WidgetPageSpecification widgetPageSpecification =
+			(WidgetPageSpecification)
+				pageSpecificationResource.
+					getSiteSiteByExternalReferenceCodePageSpecification(
+						testGroup.getExternalReferenceCode(),
+						layout.getExternalReferenceCode());
 
 		SettingsTestUtil.modifySettings(
-			serviceContext, pageSpecification.getSettings());
+			FavIcon.FavIconType.ITEM_EXTERNAL_REFERENCE, serviceContext,
+			widgetPageSpecification.getSettings());
 
 		_testPatchSiteSiteByExternalReferenceCodePageSpecification(
-			pageSpecification,
+			widgetPageSpecification,
 			() -> PageSpecificationsTestUtil.getWidgetPageSpecification(
-				null, null, pageSpecification.getSettings(), null));
+				null, null, widgetPageSpecification.getSettings(), null,
+				widgetPageSpecification.getWidgetPageSections()));
 
-		pageSpecification.setStatus(PageSpecification.Status.DRAFT);
+		widgetPageSpecification.setStatus(PageSpecification.Status.DRAFT);
 
 		_assertProblemException(
 			"BAD_REQUEST",
@@ -1096,7 +1103,8 @@ public class PageSpecificationResourceTest
 				pageSpecificationResource.
 					patchSiteSiteByExternalReferenceCodePageSpecification(
 						testGroup.getExternalReferenceCode(),
-						layout.getExternalReferenceCode(), pageSpecification));
+						layout.getExternalReferenceCode(),
+						widgetPageSpecification));
 	}
 
 	private void _testPatchSiteSiteByExternalReferenceCodePageSpecification(

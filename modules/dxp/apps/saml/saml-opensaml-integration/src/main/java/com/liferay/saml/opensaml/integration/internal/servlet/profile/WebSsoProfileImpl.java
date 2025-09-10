@@ -1269,6 +1269,44 @@ public class WebSsoProfileImpl extends BaseProfile implements WebSsoProfile {
 		return messageContext;
 	}
 
+	private String _fetchSamlIdpSPNameIdFormat(
+		long companyId, String entityId) {
+
+		try {
+			SamlIdpSpConnection samlIdpSpConnection =
+				samlIdpSpConnectionLocalService.getSamlIdpSpConnection(
+					companyId, entityId);
+
+			return samlIdpSpConnection.getNameIdFormat();
+		}
+		catch (Exception exception) {
+			if (_log.isDebugEnabled()) {
+				_log.debug(exception);
+			}
+		}
+
+		return null;
+	}
+
+	private String _fetchSamlSpIdpNameIdFormat(
+		long companyId, String entityId) {
+
+		try {
+			SamlSpIdpConnection samlSpIdpConnection =
+				samlSpIdpConnectionLocalService.getSamlSpIdpConnection(
+					companyId, entityId);
+
+			return samlSpIdpConnection.getNameIdFormat();
+		}
+		catch (Exception exception) {
+			if (_log.isDebugEnabled()) {
+				_log.debug(exception);
+			}
+		}
+
+		return null;
+	}
+
 	private int _getAssertionLifetime(String entityId) {
 		long companyId = CompanyThreadLocal.getCompanyId();
 
@@ -1363,33 +1401,21 @@ public class WebSsoProfileImpl extends BaseProfile implements WebSsoProfile {
 	private String _getNameIdFormat(String entityId) {
 		long companyId = CompanyThreadLocal.getCompanyId();
 
-		if (samlProviderConfigurationHelper.isRoleIdp()) {
-			try {
-				SamlIdpSpConnection samlIdpSpConnection =
-					samlIdpSpConnectionLocalService.getSamlIdpSpConnection(
-						companyId, entityId);
+		if (samlProviderConfigurationHelper.isRoleIb()) {
+			String nameIdFormat = _fetchSamlIdpSPNameIdFormat(
+				companyId, entityId);
 
-				return samlIdpSpConnection.getNameIdFormat();
+			if (Validator.isNotNull(nameIdFormat)) {
+				return nameIdFormat;
 			}
-			catch (Exception exception) {
-				if (_log.isDebugEnabled()) {
-					_log.debug(exception);
-				}
-			}
+
+			return _fetchSamlSpIdpNameIdFormat(companyId, entityId);
+		}
+		else if (samlProviderConfigurationHelper.isRoleIdp()) {
+			return _fetchSamlIdpSPNameIdFormat(companyId, entityId);
 		}
 		else if (samlProviderConfigurationHelper.isRoleSp()) {
-			try {
-				SamlSpIdpConnection samlSpIdpConnection =
-					samlSpIdpConnectionLocalService.getSamlSpIdpConnection(
-						companyId, entityId);
-
-				return samlSpIdpConnection.getNameIdFormat();
-			}
-			catch (Exception exception) {
-				if (_log.isDebugEnabled()) {
-					_log.debug(exception);
-				}
-			}
+			return _fetchSamlSpIdpNameIdFormat(companyId, entityId);
 		}
 
 		return null;

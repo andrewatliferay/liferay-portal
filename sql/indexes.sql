@@ -89,7 +89,7 @@ create index IX_B59A9078 on Country (uuid_[$COLUMN_LENGTH:75$]);
 
 create unique index IX_E22A5911 on CountryLocalization (countryId, languageId[$COLUMN_LENGTH:75$], ctCollectionId);
 
-create index IX_4CB1B2B4 on DLFileEntry (companyId);
+create index IX_65686609 on DLFileEntry (companyId, classNameId, classPK);
 create index IX_B8526DBE on DLFileEntry (custom1ImageId);
 create index IX_AC9BDEDD on DLFileEntry (custom2ImageId);
 create index IX_772ECDE7 on DLFileEntry (fileEntryTypeId);
@@ -273,6 +273,7 @@ create unique index IX_87E47DA9 on Organization_ (companyId, ctCollectionId, ext
 create unique index IX_F1E40A53 on Organization_ (companyId, name[$COLUMN_LENGTH:100$], ctCollectionId);
 create index IX_4BCBAB21 on Organization_ (companyId, name[$COLUMN_LENGTH:100$], parentOrganizationId);
 create index IX_418E4522 on Organization_ (companyId, parentOrganizationId);
+create index IX_D18324C on Organization_ (logoId);
 create index IX_396D6B42 on Organization_ (uuid_[$COLUMN_LENGTH:75$]);
 
 create unique index IX_3FBFA9F4 on PasswordPolicy (companyId, name[$COLUMN_LENGTH:75$]);

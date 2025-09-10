@@ -1266,7 +1266,14 @@ information.
 
 			<prepare-portal-artifact-pom snapshot.version.suffix="${snapshot.version.suffix}" />
 
-			<delete dir="${build.repository.local.actual.dir}/com/liferay/portal/com.liferay.${processed.artifact.name}" />
+			<if>
+				<not>
+					<isset property="env.JENKINS_HOME" />
+				</not>
+				<then>
+					<delete dir="${build.repository.local.actual.dir}/com/liferay/portal/com.liferay.${processed.artifact.name}" />
+				</then>
+			</if>
 
 			<artifact:install file="${artifact.name}.@{packaging}">
 				<attach-files />
@@ -2044,6 +2051,17 @@ artifact.url=${remote.repository.cdn.url}/com/liferay/portal/com.liferay.${proce
 								symbolic="${sync.dir.symbolic}"
 								toDir="${project.dir}/modules/node_modules_cache"
 							/>
+
+							<if>
+								<available file="${project.dir}/${build.binaries.cache.dir}/.yarn/dxp/apps/osb/osb-faro/offline-cache" type="dir" />
+								<then>
+									<sync-dir
+										dir="${project.dir}/${build.binaries.cache.dir}/.yarn/dxp/apps/osb/osb-faro/offline-cache"
+										symbolic="${sync.dir.symbolic}"
+										toDir="${project.dir}/modules/dxp/apps/osb/osb-faro/node_modules_cache"
+									/>
+								</then>
+							</if>
 						</then>
 						<else>
 							<gradle-execute dir="${project.dir}/modules" task="setUpYarnOfflineCache">

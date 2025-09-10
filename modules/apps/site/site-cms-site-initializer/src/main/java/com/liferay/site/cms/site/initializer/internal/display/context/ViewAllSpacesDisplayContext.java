@@ -15,9 +15,11 @@ import com.liferay.frontend.taglib.clay.servlet.taglib.util.DropdownItem;
 import com.liferay.petra.function.transform.TransformUtil;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.portal.kernel.dao.orm.QueryUtil;
+import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.language.Language;
 import com.liferay.portal.kernel.language.LanguageUtil;
 import com.liferay.portal.kernel.model.GroupConstants;
+import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.portlet.LiferayWindowState;
 import com.liferay.portal.kernel.portlet.url.builder.PortletURLBuilder;
 import com.liferay.portal.kernel.theme.ThemeDisplay;
@@ -67,8 +69,9 @@ public class ViewAllSpacesDisplayContext {
 	}
 
 	public String getAPIURL() {
-		return "/o/headless-asset-library/v1.0/asset-libraries?nestedFields=" +
-			"numberOfSites,numberOfUserAccounts,numberOfUserGroups";
+		return "/o/headless-asset-library/v1.0/asset-libraries?filter=type " +
+			"eq 'Space'&nestedFields=numberOfSites,numberOfUserAccounts," +
+				"numberOfUserGroups";
 	}
 
 	public List<DropdownItem> getBulkActionDropdownItems() {
@@ -133,15 +136,11 @@ public class ViewAllSpacesDisplayContext {
 				"view-members", null),
 			new FDSActionDropdownItem(
 				null, "globe", "view-sites",
-				LanguageUtil.format(
-					_httpServletRequest, "view-x",
-					LanguageUtil.get(_httpServletRequest, "sites")),
+				LanguageUtil.get(_httpServletRequest, "view-connected-sites"),
 				"get", "connect-sites", null),
 			new FDSActionDropdownItem(
 				null, "globe", "view-sites",
-				LanguageUtil.format(
-					_httpServletRequest, "view-x",
-					LanguageUtil.get(_httpServletRequest, "sites")),
+				LanguageUtil.get(_httpServletRequest, "view-connected-sites"),
 				"get", "view-sites", null),
 			new FDSActionDropdownItem(
 				PortletURLBuilder.create(
@@ -167,12 +166,28 @@ public class ViewAllSpacesDisplayContext {
 				_language.get(_httpServletRequest, "permissions"), "get", null,
 				"modal-permissions"),
 			new FDSActionDropdownItem(
-				_language.get(
-					_httpServletRequest,
-					"are-you-sure-you-want-to-delete-this-entry"),
-				null, "trash", "delete",
+				"{actions.delete.href}", "trash", "delete",
 				_language.get(_httpServletRequest, "delete"), "delete",
-				"delete", "headless"));
+				"delete", null));
+	}
+
+	public Map<String, Object> getToolbarProps() throws PortalException {
+		return HashMapBuilder.<String, Object>put(
+			"title",
+			() -> {
+				Layout layout = _themeDisplay.getLayout();
+
+				if (layout == null) {
+					return null;
+				}
+
+				return layout.getName(_themeDisplay.getLocale(), true);
+			}
+		).put(
+			"toolbarClassName", "section-toolbar tbar-light"
+		).put(
+			"toolbarTitleClassName", "section-toolbar-title"
+		).build();
 	}
 
 	private final DepotEntryPinLocalService _depotEntryPinLocalService;

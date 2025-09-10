@@ -229,7 +229,10 @@ export function AdministratorOrdersListView({
 						id: 'createDate',
 						name: i18n.translate('created-at'),
 						render: (createDate) => (
-							<span className="ml-2 text-capitalize text-nowrap">
+							<span
+								className="ml-2 text-capitalize text-nowrap"
+								title={createDate}
+							>
 								{formatDistance(
 									new Date(createDate ?? ''),
 									Date.now(),
@@ -258,14 +261,10 @@ export default function Orders() {
 				value: metrics?.totalCount,
 			},
 			{
-				growth: metrics?.growth ?? 0,
-				growthContext: `+${metrics?.lastPeriod ?? 0} this week `,
 				title: 'Monthly Orders',
 				value: metrics?.ordersThisMonth,
 			},
 			{
-				growth: metrics?.growth ?? 0,
-				growthContext: `+${metrics?.lastPeriod ?? 0} this week `,
 				title: 'Current Year Orders',
 				value: metrics?.ordersThisYear,
 			},
@@ -285,9 +284,8 @@ export default function Orders() {
 				<div className="d-flex flex-wrap info-container mb-4">
 					{infoCard.map((card, index) => (
 						<InfoCard
+							{...card}
 							expanded
-							growth={card?.growth ?? 0}
-							growthContext={card?.growthContext ?? 0}
 							key={index}
 							symbol="shopping-cart"
 							title={card.title}
@@ -296,7 +294,6 @@ export default function Orders() {
 					))}
 				</div>
 			</div>
-
 			<Page
 				pageRendererProps={{className: 'border py-2'}}
 				title={i18n.translate('orders')}

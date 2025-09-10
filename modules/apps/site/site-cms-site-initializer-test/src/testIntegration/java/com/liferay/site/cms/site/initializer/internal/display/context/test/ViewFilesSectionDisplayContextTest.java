@@ -61,7 +61,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 @RunWith(Arquillian.class)
 @Sync
 public class ViewFilesSectionDisplayContextTest
-	extends BaseSectionDisplayContextTestCase {
+	extends BaseFilesSectionDisplayContextTestCase {
 
 	@ClassRule
 	@Rule
@@ -113,7 +113,7 @@ public class ViewFilesSectionDisplayContextTest
 			primaryItems = (List<DropdownItem>)creationMenu.get("primaryItems");
 
 			Assert.assertEquals(
-				primaryItems.toString(), 2, primaryItems.size());
+				primaryItems.toString(), 4, primaryItems.size());
 		}
 		finally {
 			PermissionThreadLocal.setPermissionChecker(

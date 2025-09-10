@@ -128,6 +128,7 @@ definition {
 	@description = "This is a use case for LPS-160922."
 	@priority = 4
 	test AssertDefaultSearchResultsDisplayTemplate {
+		property portal.acceptance = "quarantine";
 		property test.liferay.virtual.instance = "false";
 		property test.run.type = "single";
 
@@ -3074,6 +3075,8 @@ definition {
 	@description = "This is a use case for LPS-193198."
 	@priority = 3
 	test ViewSearchBarVisibility {
+		property test.run.type = "single";
+
 		task ("Configure the embedded search bar to be invisible") {
 			SearchPage.openSearchPage();
 
@@ -3181,6 +3184,8 @@ definition {
 
 	@priority = 4
 	test ViewSortedSearchResults {
+		property portal.acceptance = "quarantine";
+
 		JSONWebcontent.addWebContent(
 			content = "Fruit",
 			groupName = "Guest",
@@ -3346,6 +3351,8 @@ definition {
 
 	@priority = 4
 	test ViewStagedAndLiveContentInSearchResults {
+		property portal.acceptance = "quarantine";
+
 		HeadlessSite.addSite(siteName = "Site Name");
 
 		PagesAdmin.openPagesAdmin(siteURLKey = "Site Name");

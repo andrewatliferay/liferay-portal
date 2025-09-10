@@ -39,16 +39,16 @@ import {journalPagesTest} from '../../journal-web/main/fixtures/journalPagesTest
 import getPageDefinition from '../../layout-content-page-editor-web/main/utils/getPageDefinition';
 import getWidgetDefinition from '../../layout-content-page-editor-web/main/utils/getWidgetDefinition';
 import {templatesPageTest} from '../../template-web/main/fixtures/templatesPageTest';
-import {mockedObjectFields} from './dependencies/objectMockedFields';
 import {
-	getFDSDateFormat,
 	getObjectEntryUIDateTimeFormat,
 	getPageEditorDateFormat,
 	getUTCOffsetFormatted,
 } from './utils/dateFormat';
 import {createFile, deleteFile} from './utils/fileHelpers';
+import {generateObjectEntryValues} from './utils/generateObjectEntry';
+import {generateObjectFields} from './utils/generateObjectFields';
 import evaluateKeepCheckingAfterFound from './utils/keepCheckingAfterFound';
-import {createObjectFields, mockObjectFields} from './utils/mockObjectFields';
+import {postListTypeDefinitionListTypeEntries} from './utils/postListTypeDefinitionListTypeEntries';
 
 const test = mergeTests(
 	accountSettingsPagesTest,
@@ -121,10 +121,13 @@ test.describe('Manage object entries through Friendly URL', () => {
 	let _objectField: ObjectField;
 
 	test.beforeEach(async ({apiHelpers, site, viewObjectEntriesPage}) => {
-		const {objectFields} = await mockObjectFields({
-			apiHelpers,
-			localizeAllLocalizable: true,
-			objectFieldBusinessTypes: ['text'],
+		const objectFields = generateObjectFields({
+			objectFieldBusinessTypes: [
+				{
+					businessType: 'Text',
+					localized: true,
+				},
+			],
 		});
 
 		_objectField = objectFields[0];
@@ -371,9 +374,7 @@ test.describe('Manage object entries through Friendly URL', () => {
 
 			await viewObjectEntriesPage.clickAddObjectEntry();
 
-			friendlyUrlInput = page.getByRole('textbox', {
-				name: 'Friendly URL There is a limit',
-			});
+			friendlyUrlInput = page.getByLabel('Friendly URL', {exact: true});
 
 			await expect(friendlyUrlInput).not.toBeDisabled();
 		});
@@ -560,30 +561,29 @@ test.describe('Manage object entries through Page Templates', () => {
 		const objectDefinitionLabel = 'ObjectDefinitionLabel' + getRandomInt();
 		const objectDefinitionName = 'ObjectDefinitionName' + getRandomInt();
 
-		const {
-			listTypeDefinition,
-			objectEntry,
-			objectFields,
-			titleObjectFieldName,
-		} = await mockObjectFields({
-			apiHelpers,
-			objectEntryReturn: {format: 'API'},
+		const {listTypeDefinition, listTypeEntries} =
+			await postListTypeDefinitionListTypeEntries({
+				apiHelpers,
+			});
+
+		const objectFields = generateObjectFields({
+			listTypeDefinitionExternalReferenceCode:
+				listTypeDefinition.externalReferenceCode,
 			objectFieldBusinessTypes: [
-				'autoIncrement',
-				'boolean',
-				'date',
-				'decimal',
-				'encrypted',
-				'integer',
-				'longInteger',
-				'longText',
-				'multiselectPicklist',
-				'picklist',
-				'precisionDecimal',
-				'richText',
-				'text',
+				'AutoIncrement',
+				'Decimal',
+				'Date',
+				'Boolean',
+				'Encrypted',
+				'Integer',
+				'LongInteger',
+				'LongText',
+				'MultiselectPicklist',
+				'Picklist',
+				'PrecisionDecimal',
+				'RichText',
+				'Text',
 			],
-			titleObjectFieldName: 'text',
 		});
 
 		apiHelpers.data.push({
@@ -610,7 +610,6 @@ test.describe('Manage object entries through Page Templates', () => {
 				status: {
 					code: 0,
 				},
-				titleObjectFieldName,
 			});
 
 		apiHelpers.data.push({
@@ -618,11 +617,20 @@ test.describe('Manage object entries through Page Templates', () => {
 			type: 'objectDefinition',
 		});
 
+		const {objectEntry: objectEntryValues} =
+			await generateObjectEntryValues({
+				listTypeEntries: listTypeEntries.map(
+					(listTypeEntry) => listTypeEntry.name
+				),
+				objectEntryFormat: 'API',
+				objectFields,
+			});
+
 		const applicationName =
 			'c/' + objectDefinition.name.toLowerCase() + 's';
 
-		await apiHelpers.objectEntry.postObjectEntry(
-			objectEntry,
+		const objectEntry = await apiHelpers.objectEntry.postObjectEntry(
+			objectEntryValues,
 			applicationName
 		);
 
@@ -647,8 +655,8 @@ test.describe('Manage object entries through Page Templates', () => {
 			await pageEditorPage.setMappingConfiguration({
 				mapping: {
 					entity: objectDefinitionLabel,
-					entry: objectEntry[titleObjectFieldName],
-					field: objectField.label.en_US,
+					entry: objectEntry.externalReferenceCode,
+					field: objectField.label['en_US'],
 				},
 				source: 'content',
 			});
@@ -656,14 +664,11 @@ test.describe('Manage object entries through Page Templates', () => {
 			let matchString: string;
 
 			switch (objectField.businessType) {
-				case 'AutoIncrement': {
-					matchString = '1';
-
-					break;
-				}
 				case 'Date': {
 					const date = new Date(
-						Date.parse(objectEntry[objectField.name])
+						Date.parse(
+							objectEntryValues[objectField.name] as string
+						)
 					);
 
 					matchString = getPageEditorDateFormat(date);
@@ -674,13 +679,15 @@ test.describe('Manage object entries through Page Templates', () => {
 				}
 				case 'Picklist': {
 					matchString = (
-						objectEntry[objectField.name] as {key: string}
+						objectEntryValues[objectField.name] as {
+							key: string;
+						}
 					).key;
 
 					break;
 				}
 				case 'MultiselectPicklist': {
-					(objectEntry[objectField.name] as string[]).forEach(
+					(objectEntryValues[objectField.name] as string[]).forEach(
 						(listTypeEntry, index) => {
 							index < 1
 								? (matchString = `${listTypeEntry}`)
@@ -691,7 +698,8 @@ test.describe('Manage object entries through Page Templates', () => {
 					break;
 				}
 				default: {
-					matchString = objectEntry[objectField.name].toString();
+					matchString =
+						objectEntryValues[objectField.name].toString();
 				}
 			}
 
@@ -714,19 +722,23 @@ test.describe('Manage object entries through Page Templates', () => {
 		pagesAdminPage,
 		templatesPage,
 	}) => {
-		const {listTypeDefinition, objectEntry, objectFields} =
-			await mockObjectFields({
+		const {listTypeDefinition, listTypeEntries} =
+			await postListTypeDefinitionListTypeEntries({
 				apiHelpers,
-				objectEntryReturn: {format: 'API'},
-				objectFieldBusinessTypes: [
-					'boolean',
-					'decimal',
-					'integer',
-					'longText',
-					'picklist',
-					'text',
-				],
 			});
+
+		const objectFields = generateObjectFields({
+			listTypeDefinitionExternalReferenceCode:
+				listTypeDefinition.externalReferenceCode,
+			objectFieldBusinessTypes: [
+				'Boolean',
+				'Decimal',
+				'Integer',
+				'LongText',
+				'Picklist',
+				'Text',
+			],
+		});
 
 		apiHelpers.data.push({
 			id: listTypeDefinition.id,
@@ -744,11 +756,20 @@ test.describe('Manage object entries through Page Templates', () => {
 			type: 'objectDefinition',
 		});
 
+		const {objectEntry: objectEntryValues} =
+			await generateObjectEntryValues({
+				listTypeEntries: listTypeEntries.map(
+					(listTypeEntry) => listTypeEntry.name
+				),
+				objectEntryFormat: 'API',
+				objectFields,
+			});
+
 		const applicationName =
 			'c/' + objectDefinition.name.toLowerCase() + 's';
 
-		await apiHelpers.objectEntry.postObjectEntry(
-			objectEntry,
+		const objectEntry = await apiHelpers.objectEntry.postObjectEntry(
+			objectEntryValues,
 			applicationName
 		);
 
@@ -788,19 +809,12 @@ test.describe('Manage object entries through Page Templates', () => {
 
 			await pageEditorPage.selectEditable(htmlFragmentId, 'element-html');
 
-			const {items} =
-				await apiHelpers.objectEntry.getObjectDefinitionObjectEntries(
-					applicationName
-				);
-
-			const objectEntryId = items[0].id;
-
 			await pageEditorPage.setMappedItem({
 				entity: objectDefinition.label['en_US'],
-				entry: objectEntryId.toString(),
+				entry: objectEntry.id.toString(),
 				entryLocator: page
 					.frameLocator('iframe[title="Select"]')
-					.getByText(objectEntryId.toString())
+					.getByText(objectEntry.id.toString())
 					.first(),
 				field: informationTemplateName,
 			});
@@ -813,7 +827,7 @@ test.describe('Manage object entries through Page Templates', () => {
 		await test.step('go to created page and assert object entries', async () => {
 			await page.goto(`/web/guest/${contentPageName}`);
 
-			const entries = Object.values(objectEntry)
+			const entries = Object.values(objectEntryValues)
 				.map((value) => {
 					if (typeof value === 'boolean') {
 						return value ? 'Yes' : 'No';
@@ -837,30 +851,36 @@ test.describe('Manage object entries through Page Templates', () => {
 });
 
 test.describe('Manage object entries through View Object Entries', () => {
-	test('can add an entry with all object fields', async ({
+	test('can add and update an entry with all object fields', async ({
 		apiHelpers,
 		page,
 		viewObjectEntriesPage,
 	}) => {
-		const ATTACHMENT_FILE_NAME = 'astronaut.png';
-		const {listTypeDefinition, objectEntry, objectFields} =
-			await mockObjectFields({
+		const ATTACHMENT_FILE_NAME_1 = 'astronaut.png';
+		const ATTACHMENT_FILE_NAME_2 = 'earth.png';
+
+		const {listTypeDefinition, listTypeEntries} =
+			await postListTypeDefinitionListTypeEntries({
 				apiHelpers,
-				objectEntryReturn: {format: 'UI'},
-				objectFieldBusinessTypes: [
-					'attachment',
-					'boolean',
-					'date',
-					'decimal',
-					'integer',
-					'longInteger',
-					'longText',
-					'picklist',
-					'precisionDecimal',
-					'richText',
-					'text',
-				],
 			});
+
+		const objectFields = generateObjectFields({
+			listTypeDefinitionExternalReferenceCode:
+				listTypeDefinition.externalReferenceCode,
+			objectFieldBusinessTypes: [
+				'Attachment',
+				'Boolean',
+				'Date',
+				'Decimal',
+				'Integer',
+				'LongInteger',
+				'LongText',
+				'Picklist',
+				'PrecisionDecimal',
+				'RichText',
+				'Text',
+			],
+		});
 
 		apiHelpers.data.push({
 			id: listTypeDefinition.id,
@@ -901,46 +921,20 @@ test.describe('Manage object entries through View Object Entries', () => {
 			objectDefinition.label['en_US']
 		);
 
-		for (const objectField of objectFields) {
-			switch (objectField.businessType) {
-				case 'Attachment': {
-					await viewObjectEntriesPage.selectFileButton.click();
+		const {objectEntry} = await generateObjectEntryValues({
+			listTypeEntries: listTypeEntries.map(
+				(listTypeEntry) => listTypeEntry.name
+			),
+			objectEntryFormat: 'UI',
+			objectFields,
+		});
 
-					await viewObjectEntriesPage.selectFileFromDocumentsAndMedia(
-						ATTACHMENT_FILE_NAME
-					);
-
-					break;
-				}
-				case 'Boolean': {
-					objectEntry[objectField.name]
-						? await page
-								.getByLabel(objectField.label['en_US'])
-								.check()
-						: await page
-								.getByLabel(objectField.label['en_US'])
-								.uncheck();
-
-					break;
-				}
-				case 'Picklist': {
-					await viewObjectEntriesPage.selectDropdownItem(
-						objectField.label['en_US'],
-						objectEntry[objectField.name].key.toString()
-					);
-
-					break;
-				}
-				default: {
-					await viewObjectEntriesPage.fillObjectEntry({
-						objectFieldBusinessType: objectField.businessType,
-						objectFieldLabel: objectField.label['en_US'],
-						objectFieldValue:
-							objectEntry[objectField.name].toString(),
-					});
-				}
-			}
-		}
+		const objectFieldObjectEntryValues =
+			await viewObjectEntriesPage.fillObjectFields({
+				attachmentFileName: ATTACHMENT_FILE_NAME_1,
+				objectEntry,
+				objectFields,
+			});
 
 		await viewObjectEntriesPage.saveObjectEntryButton.click();
 
@@ -948,55 +942,50 @@ test.describe('Manage object entries through View Object Entries', () => {
 
 		await viewObjectEntriesPage.backButton.click();
 
-		for (const {businessType, name} of objectFields) {
-			let matchString: string;
-
-			switch (businessType) {
-				case 'Attachment': {
-					matchString = ATTACHMENT_FILE_NAME;
-
-					break;
-				}
-				case 'Boolean': {
-					matchString = objectEntry[name] ? 'Yes' : 'No';
-
-					break;
-				}
-				case 'Date': {
-					const date = new Date(objectEntry[name]);
-
-					matchString = getFDSDateFormat(date);
-
-					break;
-				}
-				case 'Picklist': {
-					matchString = (objectEntry[name] as {key: string}).key;
-
-					break;
-				}
-				case 'MultiselectPicklist': {
-					(objectEntry[name] as string[]).forEach(
-						(listTypeEntry, index) => {
-							index < 1
-								? (matchString = `${listTypeEntry}`)
-								: (matchString += `, ${listTypeEntry}`);
-						}
-					);
-
-					break;
-				}
-				case 'RichText': {
-					matchString = objectEntry[name].substring(0, 35);
-
-					break;
-				}
-				default: {
-					matchString = objectEntry[name];
-				}
-			}
-
+		for (const {entry} of objectFieldObjectEntryValues) {
 			await expect(
-				page.locator('td').getByText(matchString, {exact: true})
+				page.locator('td').getByText(entry, {exact: true})
+			).toBeVisible();
+		}
+
+		const selectedListTypeEntry = objectFieldObjectEntryValues.find(
+			(objectFieldObjectEntryValue) =>
+				objectFieldObjectEntryValue.businessType === 'Picklist'
+		)?.entry;
+
+		const newListTypeEntries = listTypeEntries.filter(
+			(listTypeEntry) => listTypeEntry.key !== selectedListTypeEntry
+		);
+
+		const {objectEntry: newObjectEntryValues} =
+			await generateObjectEntryValues({
+				listTypeEntries: newListTypeEntries.map(
+					(listTypeEntry) => listTypeEntry.name
+				),
+				objectEntryFormat: 'UI',
+				objectFields,
+			});
+
+		await viewObjectEntriesPage.goto(objectDefinition.className);
+
+		await viewObjectEntriesPage.frontendDatasetItems.first().click();
+
+		const newObjectFieldObjectEntryValues =
+			await viewObjectEntriesPage.fillObjectFields({
+				attachmentFileName: ATTACHMENT_FILE_NAME_2,
+				objectEntry: newObjectEntryValues,
+				objectFields,
+			});
+
+		await viewObjectEntriesPage.saveObjectEntryButton.click();
+
+		await expect(viewObjectEntriesPage.successMessage).toBeVisible();
+
+		await viewObjectEntriesPage.backButton.click();
+
+		for (const {entry} of newObjectFieldObjectEntryValues) {
+			await expect(
+				page.locator('td').getByText(entry, {exact: true})
 			).toBeVisible();
 		}
 	});
@@ -1007,13 +996,18 @@ test.describe('Manage object entries through View Object Entries', () => {
 		page,
 		viewObjectEntriesPage,
 	}) => {
+		const {listTypeDefinition, listTypeEntries} =
+			await postListTypeDefinitionListTypeEntries({
+				apiHelpers,
+			});
+
 		const objectDefinitionLabel = 'ObjectDefinitionLabel' + getRandomInt();
 
-		const {listTypeDefinitionItems, objectFields, titleObjectFieldName} =
-			await mockObjectFields({
-				apiHelpers,
-				objectFieldBusinessTypes: ['multiselectPicklist'],
-			});
+		const objectFields = generateObjectFields({
+			listTypeDefinitionExternalReferenceCode:
+				listTypeDefinition.externalReferenceCode,
+			objectFieldBusinessTypes: ['MultiselectPicklist'],
+		});
 
 		const objectDefinitionAPIClient =
 			await apiHelpers.buildRestClient(ObjectDefinitionAPI);
@@ -1035,7 +1029,6 @@ test.describe('Manage object entries through View Object Entries', () => {
 				status: {
 					code: 0,
 				},
-				titleObjectFieldName,
 			});
 
 		apiHelpers.data.push({
@@ -1047,7 +1040,11 @@ test.describe('Manage object entries through View Object Entries', () => {
 
 		await viewObjectEntriesPage.addObjectEntryButton.click();
 
-		await formFieldsPage.addSelectItem(listTypeDefinitionItems[0]);
+		const listTypeEntry = listTypeEntries[0];
+
+		const {name_i18n: listTypeEntry_i18n} = listTypeEntry;
+
+		await formFieldsPage.addSelectItem(listTypeEntry_i18n['en-US']);
 
 		await viewObjectEntriesPage.saveObjectEntryButton.click();
 
@@ -1062,7 +1059,7 @@ test.describe('Manage object entries through View Object Entries', () => {
 		await expect(
 			page.getByRole('gridcell', {
 				exact: true,
-				name: listTypeDefinitionItems[0],
+				name: listTypeEntry.name_i18n['en-US'],
 			})
 		).toBeVisible();
 	});
@@ -1270,9 +1267,9 @@ test.describe('Manage object entries through View Object Entries', () => {
 		viewObjectEntriesPage,
 	}) => {
 		const ATTACHMENT_FILE_NAME = 'astronaut.png';
-		const {objectFields} = await mockObjectFields({
-			apiHelpers,
-			objectFieldBusinessTypes: ['attachment'],
+
+		const objectFields = generateObjectFields({
+			objectFieldBusinessTypes: ['Attachment'],
 		});
 
 		const objectDefinitionAPIClient =
@@ -1586,11 +1583,13 @@ test.describe('Manage object entries through View Object Entries', () => {
 		apiHelpers,
 		viewObjectEntriesPage,
 	}) => {
+		const objectFields = generateObjectFields({
+			objectFieldBusinessTypes: ['Attachment'],
+		});
+
 		const objectDefinition =
 			await apiHelpers.objectAdmin.postRandomObjectDefinition({
-				objectFields: [
-					mockedObjectFields.attachmentFieldDocumentsAndMedia,
-				],
+				objectFields,
 				status: {code: 0},
 			});
 
@@ -1617,12 +1616,15 @@ test.describe('Manage object entries through View Object Entries', () => {
 		page,
 		viewObjectEntriesPage,
 	}) => {
-		const objectFields = createObjectFields('text', [
-			{
-				label: 'Custom Field',
-				name: 'customField',
-			},
-		]);
+		const objectFields = generateObjectFields({
+			objectFieldBusinessTypes: [
+				{
+					businessType: 'Text',
+					label: {en_US: 'Custom Field'},
+					name: 'customField',
+				},
+			],
+		});
 
 		const objectDefinition =
 			await apiHelpers.objectAdmin.postRandomObjectDefinition({
@@ -1797,12 +1799,15 @@ test.describe('Manage object entries through View Object Entries', () => {
 		let objectEntryB;
 
 		await test.step('Setup', async () => {
-			const objectFields = createObjectFields('text', [
-				{
-					label: 'Custom Field',
-					name: 'customField',
-				},
-			]);
+			const objectFields = generateObjectFields({
+				objectFieldBusinessTypes: [
+					{
+						businessType: 'Text',
+						label: {en_US: 'Custom Field'},
+						name: 'customField',
+					},
+				],
+			});
 
 			objectDefinition =
 				await apiHelpers.objectAdmin.postRandomObjectDefinition({
@@ -1896,6 +1901,137 @@ test.describe('Manage object entries through View Object Entries', () => {
 		});
 	});
 
+	test('change the object entry status from Draft to Approved after processing an update', async ({
+		apiHelpers,
+		objectLayoutsPage,
+		page,
+		viewObjectEntriesPage,
+	}) => {
+		const objectFields = generateObjectFields({
+			objectFieldBusinessTypes: ['Text'],
+		});
+
+		const objectField: ObjectField = objectFields[0];
+
+		const objectDefinitionAPIClient =
+			await apiHelpers.buildRestClient(ObjectDefinitionAPI);
+
+		const {body: objectDefinition} =
+			await objectDefinitionAPIClient.postObjectDefinition({
+				enableObjectEntryDraft: true,
+				label: {
+					en_US: 'ObjectDefinitionLabel' + getRandomInt(),
+				},
+				name: 'ObjectDefinitionName' + getRandomInt(),
+				objectFields,
+				pluralLabel: {
+					en_US: 'ObjectDefinitionLabel' + getRandomInt(),
+				},
+				scope: 'company',
+				status: {
+					code: 0,
+				},
+			});
+
+		apiHelpers.data.push({
+			id: objectDefinition.id,
+			type: 'objectDefinition',
+		});
+
+		const applicationName =
+			'c/' + objectDefinition.name.toLowerCase() + 's';
+
+		const objectEntry1 = await apiHelpers.objectEntry.postObjectEntry(
+			{
+				[objectField.name]: 'test',
+				status: {
+					code: 2,
+					label: 'draft',
+					label_i18n: 'Draft',
+				},
+			},
+			applicationName
+		);
+
+		await viewObjectEntriesPage.goto(objectDefinition.className);
+
+		await expect(page.getByRole('cell', {name: 'Draft'})).toBeVisible();
+
+		await page.getByRole('link', {name: String(objectEntry1.id)}).click();
+
+		await viewObjectEntriesPage.fillObjectEntry({
+			objectFieldBusinessType: 'Text',
+			objectFieldLabel: objectField.label['en_US'],
+			objectFieldValue: 'test 1',
+		});
+
+		await viewObjectEntriesPage.saveObjectEntryButton.click();
+
+		await expect(viewObjectEntriesPage.successMessage).toBeVisible();
+
+		await viewObjectEntriesPage.backButton.click();
+
+		await expect(page.getByRole('cell', {name: 'Approved'})).toBeVisible();
+
+		await expect(
+			page.locator('td').getByText('test 1', {exact: true})
+		).toBeVisible();
+
+		const objectLayoutName = getRandomString();
+
+		await objectLayoutsPage.goto(objectDefinition.label['en_US']);
+
+		await objectLayoutsPage.createObjectLayout(objectLayoutName);
+
+		await objectLayoutsPage.createObjectLayoutContent({
+			objectLayoutBlockName: getRandomString(),
+			objectLayoutName,
+			objectLayoutTabName: getRandomString(),
+		});
+
+		await objectLayoutsPage.addObjectLayoutObjectField(
+			objectField.label['en_US']
+		);
+
+		const objectEntry2 = await apiHelpers.objectEntry.postObjectEntry(
+			{
+				[objectField.name]: 'test',
+				status: {
+					code: 2,
+					label: 'draft',
+					label_i18n: 'Draft',
+				},
+			},
+			applicationName
+		);
+
+		await viewObjectEntriesPage.goto(objectDefinition.className);
+
+		await expect(page.getByRole('cell', {name: 'Draft'})).toBeVisible();
+
+		await page.getByRole('link', {name: String(objectEntry2.id)}).click();
+
+		await viewObjectEntriesPage.fillObjectEntry({
+			objectFieldBusinessType: 'Text',
+			objectFieldLabel: objectField.label['en_US'],
+			objectFieldValue: 'test 2',
+		});
+
+		await viewObjectEntriesPage.saveObjectEntryButton.click();
+
+		await expect(viewObjectEntriesPage.successMessage).toBeVisible();
+
+		await viewObjectEntriesPage.backButton.click();
+
+		await expect(
+			page.getByRole('cell', {name: 'Approved'}).nth(1)
+		).toBeVisible();
+
+		await expect(
+			page.locator('td').getByText('test 2', {exact: true})
+		).toBeVisible();
+	});
+
 	test(
 		'error message is displayed when trying to view a deleted object entry with a user with view-only permissions',
 		{tag: ['@LPD-61276']},
@@ -1903,7 +2039,10 @@ test.describe('Manage object entries through View Object Entries', () => {
 			let entryUrl: string;
 
 			const objectName = 'ObjectName' + getRandomInt();
-			const fieldName = 'textField' + getRandomInt();
+
+			const objectFields = generateObjectFields({
+				objectFieldBusinessTypes: ['Text'],
+			});
 
 			const objectDefinitionAPIClient =
 				await apiHelpers.buildRestClient(ObjectDefinitionAPI);
@@ -1915,18 +2054,12 @@ test.describe('Manage object entries through View Object Entries', () => {
 						en_US: objectName,
 					},
 					name: objectName,
-					objectFields: createObjectFields('text', [
-						{
-							label: fieldName,
-							name: fieldName,
-						},
-					]),
+					objectFields,
 					pluralLabel: {
 						en_US: objectName + 's',
 					},
 					scope: 'company',
 					status: {code: 0},
-					titleObjectFieldName: fieldName,
 				});
 
 			apiHelpers.data.push({
@@ -1975,7 +2108,9 @@ test.describe('Manage object entries through View Object Entries', () => {
 
 				await viewObjectEntriesPage.addObjectEntryButton.click();
 
-				await page.getByLabel(fieldName).fill(getRandomString());
+				const objectFieldName = objectFields[0].name;
+
+				await page.getByLabel(objectFieldName).fill(getRandomString());
 
 				await viewObjectEntriesPage.saveObjectEntryButton.click();
 
@@ -2011,21 +2146,18 @@ test.describe('Manage object entries through View Object Entries', () => {
 		page,
 		viewObjectEntriesPage,
 	}) => {
-		const {objectFields} = await mockObjectFields({
-			apiHelpers,
-			objectFieldBusinessTypes: ['text'],
-		});
-
-		const requiredObjectFields = objectFields.map((objectField) => {
-			return {
-				...objectField,
-				required: true,
-			};
+		const objectFields = generateObjectFields({
+			objectFieldBusinessTypes: [
+				{
+					businessType: 'Text',
+					required: true,
+				},
+			],
 		});
 
 		const objectDefinition =
 			await apiHelpers.objectAdmin.postRandomObjectDefinition({
-				objectFields: requiredObjectFields,
+				objectFields,
 				status: {code: 0},
 			});
 
@@ -2049,10 +2181,6 @@ test.describe('Manage object entries through View Object Entries', () => {
 		'multiselect picklist field does not flicker',
 		{tag: ['@LPD-26139', '@LPD-56673']},
 		async ({apiHelpers, page, viewObjectEntriesPage}) => {
-			let objectEntry: Partial<ObjectEntry>;
-			let objectFields: ObjectField[];
-			let textFieldData: ObjectField;
-
 			const placeHolderText = 'Choose Options';
 
 			const multiselectPicklistFieldKeepsAttached = async () => {
@@ -2063,24 +2191,25 @@ test.describe('Manage object entries through View Object Entries', () => {
 				});
 			};
 
-			await test.step('setup and navigate to add object entry', async () => {
-				const mockedObjectFields = await mockObjectFields({
+			const {listTypeDefinition, listTypeEntries} =
+				await postListTypeDefinitionListTypeEntries({
 					apiHelpers,
-					objectEntryReturn: {format: 'UI'},
-					objectFieldBusinessTypes: ['text', 'multiselectPicklist'],
 				});
 
-				const listTypeDefinition =
-					mockedObjectFields.listTypeDefinition;
+			const objectFields = generateObjectFields({
+				listTypeDefinitionExternalReferenceCode:
+					listTypeDefinition.externalReferenceCode,
+				objectFieldBusinessTypes: [
+					'MultiselectPicklist',
+					{
+						businessType: 'Text',
+						label: {en_US: 'Text Field'},
+						required: true,
+					},
+				],
+			});
 
-				objectFields = mockedObjectFields.objectFields;
-
-				objectEntry = mockedObjectFields.objectEntry;
-
-				textFieldData = objectFields[0];
-
-				textFieldData.required = true;
-
+			await test.step('setup and navigate to add object entry', async () => {
 				apiHelpers.data.push({
 					id: listTypeDefinition.id,
 					type: 'listTypeDefinition',
@@ -2130,12 +2259,7 @@ test.describe('Manage object entries through View Object Entries', () => {
 
 				await page.getByPlaceholder(placeHolderText).click();
 
-				const multiselectPicklistField = objectFields.find(
-					({businessType}) => businessType === 'MultiselectPicklist'
-				);
-
-				const firstOptionName =
-					objectEntry[multiselectPicklistField.name][0];
+				const firstOptionName = listTypeEntries[0].name;
 
 				await page.getByTestId(`labelItem-${firstOptionName}`).click();
 
@@ -2155,7 +2279,7 @@ test.describe('Manage object entries through View Object Entries', () => {
 			});
 
 			await test.step('Assert that it does not flicker when interacting with mandatory field', async () => {
-				const textField = page.getByLabel(textFieldData.label['en_US']);
+				const textField = page.getByLabel('Text Field');
 
 				await textField.focus();
 
@@ -2175,9 +2299,8 @@ test.describe('Manage object entries through View Object Entries', () => {
 		page,
 		viewObjectEntriesPage,
 	}) => {
-		const {objectFields} = await mockObjectFields({
-			apiHelpers,
-			objectFieldBusinessTypes: ['richText'],
+		const objectFields = generateObjectFields({
+			objectFieldBusinessTypes: ['RichText'],
 		});
 
 		const objectDefinition =
@@ -2242,9 +2365,36 @@ test.describe('Manage object entries through View Object Entries', () => {
 
 		// Create object definition with attachment object field
 
+		const objectFields = generateObjectFields({
+			objectFieldBusinessTypes: [
+				{
+					businessType: 'Attachment',
+					name: 'testAttachment',
+					objectFieldSettings: [
+						{
+							name: 'acceptedFileExtensions',
+							value: 'jpeg, jpg, pdf, png, txt',
+						},
+						{
+							name: 'maximumFileSize',
+							value: 100,
+						},
+						{
+							name: 'fileSource',
+							value: 'userComputer',
+						},
+						{
+							name: 'showFilesInDocumentsAndMedia',
+							value: false,
+						},
+					],
+				},
+			],
+		});
+
 		const objectDefinition =
 			await apiHelpers.objectAdmin.postRandomObjectDefinition({
-				objectFields: [mockedObjectFields.attachmentFieldUserComputer],
+				objectFields,
 				status: {code: 0},
 			});
 
@@ -2517,12 +2667,9 @@ test.describe('Manage object entries through Workflow', () => {
 			const objectDefinitionName =
 				'ObjectDefinitionName' + getRandomInt();
 
-			const {objectFields, titleObjectFieldName} = await mockObjectFields(
-				{
-					apiHelpers,
-					objectFieldBusinessTypes: ['dateTime'],
-				}
-			);
+			const objectFields = generateObjectFields({
+				objectFieldBusinessTypes: ['DateTime'],
+			});
 
 			const objectDefinitionAPIClient =
 				await apiHelpers.buildRestClient(ObjectDefinitionAPI);
@@ -2544,7 +2691,6 @@ test.describe('Manage object entries through Workflow', () => {
 					status: {
 						code: 0,
 					},
-					titleObjectFieldName,
 				});
 
 			apiHelpers.data.push({

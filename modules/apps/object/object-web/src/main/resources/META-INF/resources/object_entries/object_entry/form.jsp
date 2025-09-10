@@ -46,7 +46,7 @@ portletDisplay.setURLBack(backURL);
 					<clay:panel
 						collapsable="<%= true %>"
 						displayTitle='<%= LanguageUtil.get(request, "seo") %>'
-						displayType="secondary"
+						displayType="default"
 						expanded="<%= true %>"
 					>
 						<div class="panel-body">
@@ -132,25 +132,6 @@ portletDisplay.setURLBack(backURL);
 		function <portlet:namespace />getInputValues(element, selector) {
 			return Array.from(element.querySelectorAll(selector)).map(
 				(item) => item.value
-			);
-		}
-
-		function <portlet:namespace />getPath(externalReferenceCode) {
-			const scope = '<%= objectDefinition.getScope() %>';
-			const contextPath = '/o<%= objectDefinition.getRESTContextPath() %>';
-			const pathScopedBySite = contextPath.concat(
-				`/scopes/\${themeDisplay.getSiteGroupId()}`
-			);
-
-			let path = scope === 'site' ? pathScopedBySite : contextPath;
-
-			if (!externalReferenceCode) {
-				return path;
-			}
-
-			return path.concat(
-				'/by-external-reference-code/',
-				`\${externalReferenceCode}`
 			);
 		}
 
@@ -288,9 +269,6 @@ portletDisplay.setURLBack(backURL);
 							);
 							const externalReferenceCode =
 								<portlet:namespace />getExternalReferenceCode();
-							const path = <portlet:namespace />getPath(
-								externalReferenceCode
-							);
 
 							if (categoriesContent) {
 								values = Object.assign(
@@ -316,7 +294,7 @@ portletDisplay.setURLBack(backURL);
 								['relationshipField']:
 									'<%= objectEntryDisplayContext.getObjectRelationshipERCObjectFieldName() %>',
 								['parentObjectEntryERC']:
-									'<%= objectEntryDisplayContext.getParentObjectEntryId() %>',
+									'<%= objectEntryDisplayContext.getParentObjectEntryERC() %>',
 							};
 
 							if (autoRelatedValue['relationshipField'] !== 'null') {
@@ -354,22 +332,30 @@ portletDisplay.setURLBack(backURL);
 								};
 							}
 
-							const method = !externalReferenceCode
-								? 'POST'
-								: hasObjectLayout
-									? 'PATCH'
-									: 'PUT';
+							const method =
+								'<%= objectEntryDisplayContext.getMethod() %>';
 
-							Liferay.Util.fetch(path, {
-								body: JSON.stringify(values),
-								headers: new Headers({
-									'Accept': 'application/json',
-									'Accept-Language':
-										'<%= LanguageUtil.getBCP47LanguageId(request) %>',
-									'Content-Type': 'application/json',
-								}),
-								method: method,
-							})
+							if (method === 'PATCH') {
+								values = Object.assign(values, {
+									['status']: {
+										code: <%= WorkflowConstants.STATUS_APPROVED %>,
+									},
+								});
+							}
+
+							Liferay.Util.fetch(
+								'<%= objectEntryDisplayContext.getAPIURL() %>',
+								{
+									body: JSON.stringify(values),
+									headers: new Headers({
+										'Accept': 'application/json',
+										'Accept-Language':
+											'<%= LanguageUtil.getBCP47LanguageId(request) %>',
+										'Content-Type': 'application/json',
+									}),
+									method: method,
+								}
+							)
 								.then((response) => {
 									Liferay.fire('submitButtonClicked');
 

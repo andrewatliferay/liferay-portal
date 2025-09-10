@@ -51,7 +51,8 @@ public class ViewVersionHistoryDisplayContext {
 	public String getAPIURL() throws PortalException {
 		return StringBundler.concat(
 			"/o", _objectDefinition.getRESTContextPath(), StringPool.SLASH,
-			_objectEntry.getObjectEntryId(), "/versions");
+			_objectEntry.getObjectEntryId(),
+			"/versions?nestedFields=file.thumbnailURL");
 	}
 
 	public List<FDSActionDropdownItem> getFDSActionDropdownItems() {
@@ -66,7 +67,8 @@ public class ViewVersionHistoryDisplayContext {
 					GroupConstants.CMS_FRIENDLY_URL,
 					"/edit_content_item?objectEntryId={id}",
 					"&p_l_mode=read&p_p_state=", LiferayWindowState.POP_UP,
-					"&redirect=", _themeDisplay.getURLCurrent()),
+					"&redirect=", _themeDisplay.getURLCurrent(),
+					"&version={systemProperties.version.number}"),
 				"view", "view-content",
 				LanguageUtil.get(_httpServletRequest, "view"), null, null,
 				null),

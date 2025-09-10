@@ -10,15 +10,18 @@ import {dataApiHelpersTest} from '../../../fixtures/dataApiHelpersTest';
 import {featureFlagsTest} from '../../../fixtures/featureFlagsTest';
 import {loginTest} from '../../../fixtures/loginTest';
 import {pageEditorPagesTest} from '../../../fixtures/pageEditorPagesTest';
+import {createCategories} from '../../../helpers/CreateCategories';
 import {clickAndExpectToBeVisible} from '../../../utils/clickAndExpectToBeVisible';
 import fillAndClickOutside from '../../../utils/fillAndClickOutside';
 import {getRandomInt} from '../../../utils/getRandomInt';
 import getRandomString from '../../../utils/getRandomString';
 import {waitForAlert} from '../../../utils/waitForAlert';
 import {structureBuilderPagesTest} from '../structure-builder/fixtures/structureBuilderPagesTest';
+import {categorizationPagesTest} from './fixtures/categorizationPagesTest';
 import {cmsPagesTest} from './fixtures/cmsPagesTest';
 
 const test = mergeTests(
+	categorizationPagesTest,
 	cmsPagesTest,
 	dataApiHelpersTest,
 	featureFlagsTest({
@@ -577,3 +580,139 @@ test.describe('Schedule Panel', () => {
 		}
 	);
 });
+
+test.describe('Categorization Panel', () => {
+	test(
+		'Add categories and tags to the content',
+		{tag: '@LPD-62047'},
+		async ({
+			apiHelpers,
+			contentsPage,
+			page,
+			tagsPage,
+			vocabulariesPage,
+		}) => {
+
+			// Create category
+
+			const categoryName = getRandomString();
+			const vocabularyName = getRandomString();
+
+			await createCategories({
+				apiHelpers,
+				assetLibraries: [{id: -1, name: 'All Spaces'}],
+				categoryNames: [{name: categoryName}],
+				vocabularyName,
+			});
+
+			// Create a content
+
+			await contentsPage.goto();
+
+			await contentsPage.createContent('Basic Web Content');
+
+			await contentsPage.openSidePanel('Categorization');
+
+			const title = getRandomString();
+
+			await page.getByPlaceholder('New Basic Web Content').fill(title);
+
+			// Add a new tag to the content
+
+			const tagsAutocomplete = page.getByPlaceholder('Add tag');
+
+			const tagName = getRandomString();
+
+			await tagsAutocomplete.fill(tagName);
+
+			await page.getByRole('option', {name: 'Create New Tag:'}).click();
+
+			const tagLabel = page.locator('.label-item', {hasText: tagName});
+
+			await expect(tagLabel).toBeAttached();
+
+			// Add a new category to the content
+
+			const categoriesAutocomplete =
+				page.getByPlaceholder('Add category');
+
+			await categoriesAutocomplete.fill(categoryName);
+
+			const option = page.getByRole('option', {name: categoryName});
+
+			option.waitFor();
+			option.click();
+
+			const categoryLabel = page.locator('.label-item', {
+				hasText: categoryName,
+			});
+
+			await expect(categoryLabel).toBeAttached();
+
+			// Publish the content
+
+			await contentsPage.publishButton.click();
+
+			const content = page.locator('.table-list-title a', {
+				hasText: title,
+			});
+
+			await content.waitFor();
+
+			// Edit content and check that the tag and category are still there
+
+			await content.click();
+
+			await contentsPage.openSidePanel('Categorization');
+
+			await expect(tagLabel).toBeAttached();
+			await expect(categoryLabel).toBeAttached();
+
+			// Delete tag
+
+			await tagsPage.goto();
+			await tagsPage.deleteTag(tagName);
+
+			// Delete vocabulary
+
+			await vocabulariesPage.goto();
+			await vocabulariesPage.deleteVocabulary(vocabularyName);
+		}
+	);
+});
+
+test(
+	'Check that the content shifts when the side panel opens',
+	{tag: '@LPD-62067'},
+	async ({contentsPage, page}) => {
+		const getContainerRightPadding = async () =>
+			page
+				.locator('#content')
+				.evaluate(
+					(element: HTMLDivElement) =>
+						window.getComputedStyle(element).paddingRight
+				);
+
+		// Create new Knowledge Base content
+
+		await contentsPage.goto();
+
+		await contentsPage.createContent('Knowledge Base');
+
+		// Compare the container padding when the side panel is closed and opened
+
+		let containerWidth = await getContainerRightPadding();
+
+		await contentsPage.openSidePanel();
+
+		await page
+			.locator(
+				'.content-editor__side-panel .sidebar:not(.c-slideout-transition)'
+			)
+			.waitFor();
+
+		containerWidth = await getContainerRightPadding();
+
+		expect(containerWidth).toBe('280px');
+	}
+);

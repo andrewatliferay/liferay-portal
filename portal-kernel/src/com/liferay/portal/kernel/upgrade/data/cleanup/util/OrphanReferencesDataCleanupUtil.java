@@ -65,14 +65,13 @@ public class OrphanReferencesDataCleanupUtil {
 			}
 
 			while (resultSet.next()) {
-				_log.info(
+				DataCleanupLoggingUtil.logDelete(
+					_log, resultSet.getLong(2), sourceTableName,
 					StringBundler.concat(
-						String.valueOf(resultSet.getLong(2)),
-						" orphan entries from table ", sourceTableName,
-						" have been deleted because value ",
+						sourceColumnName, StringPool.SPACE,
 						String.valueOf(resultSet.getObject(1)),
-						" was not found in the origin table ", targetTableName,
-						" and column ", targetColumnName));
+						" was not found in ", targetTableName,
+						StringPool.PERIOD, targetColumnName));
 			}
 		}
 	}
@@ -124,7 +123,7 @@ public class OrphanReferencesDataCleanupUtil {
 		OrphanReferencesDataCleanupUtil.class);
 
 	private static final List<String> _excludedTableNames = new ArrayList<>(
-		Arrays.asList("Audit_AuditEvent"));
+		Arrays.asList("Audit_AuditEvent", "CyrusUser", "CyrusVirtual"));
 	private static final List<String> _normalizedExcludedTableNames =
 		new ArrayList<>();
 

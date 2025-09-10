@@ -5,6 +5,7 @@
 
 package com.liferay.headless.admin.site.resource.v1_0.test.util;
 
+import com.liferay.asset.publisher.constants.AssetPublisherPortletKeys;
 import com.liferay.expando.kernel.model.ExpandoBridge;
 import com.liferay.expando.kernel.model.ExpandoColumnConstants;
 import com.liferay.expando.kernel.model.ExpandoTable;
@@ -13,11 +14,17 @@ import com.liferay.expando.kernel.service.ExpandoTableLocalServiceUtil;
 import com.liferay.headless.admin.site.client.custom.field.CustomField;
 import com.liferay.headless.admin.site.client.custom.field.CustomValue;
 import com.liferay.headless.admin.site.client.dto.v1_0.ContentPageSpecification;
+import com.liferay.headless.admin.site.client.dto.v1_0.GeneralConfig;
 import com.liferay.headless.admin.site.client.dto.v1_0.PageElement;
 import com.liferay.headless.admin.site.client.dto.v1_0.PageExperience;
 import com.liferay.headless.admin.site.client.dto.v1_0.PageSpecification;
 import com.liferay.headless.admin.site.client.dto.v1_0.Settings;
+import com.liferay.headless.admin.site.client.dto.v1_0.SitePage;
+import com.liferay.headless.admin.site.client.dto.v1_0.WidgetLookAndFeelConfig;
+import com.liferay.headless.admin.site.client.dto.v1_0.WidgetPageSection;
 import com.liferay.headless.admin.site.client.dto.v1_0.WidgetPageSpecification;
+import com.liferay.headless.admin.site.client.dto.v1_0.WidgetPageWidgetInstance;
+import com.liferay.headless.admin.site.client.dto.v1_0.WidgetPermission;
 import com.liferay.headless.admin.site.client.problem.Problem;
 import com.liferay.layout.constants.LayoutTypeSettingsConstants;
 import com.liferay.layout.page.template.constants.LayoutPageTemplateEntryTypeConstants;
@@ -26,7 +33,11 @@ import com.liferay.layout.page.template.service.LayoutPageTemplateEntryLocalServ
 import com.liferay.layout.test.util.ContentLayoutTestUtil;
 import com.liferay.petra.function.UnsafeFunction;
 import com.liferay.petra.function.UnsafeRunnable;
+import com.liferay.petra.function.transform.TransformUtil;
 import com.liferay.portal.kernel.model.Layout;
+import com.liferay.portal.kernel.model.role.RoleConstants;
+import com.liferay.portal.kernel.portlet.PortletIdCodec;
+import com.liferay.portal.kernel.security.permission.ActionKeys;
 import com.liferay.portal.kernel.security.permission.PermissionChecker;
 import com.liferay.portal.kernel.security.permission.PermissionCheckerFactoryUtil;
 import com.liferay.portal.kernel.security.permission.PermissionThreadLocal;
@@ -36,17 +47,24 @@ import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.kernel.test.util.TestPropsValues;
 import com.liferay.portal.kernel.util.ArrayUtil;
 import com.liferay.portal.kernel.util.GetterUtil;
+import com.liferay.portal.kernel.util.HashMapBuilder;
+import com.liferay.portal.kernel.util.ListUtil;
+import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.PortalUtil;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.workflow.WorkflowConstants;
 import com.liferay.segments.constants.SegmentsExperienceConstants;
+import com.liferay.site.navigation.constants.SiteNavigationMenuPortletKeys;
 
 import java.io.Serializable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 
 import org.junit.Assert;
 
@@ -199,6 +217,13 @@ public class PageSpecificationsTestUtil {
 			expectedDraftContentPageSpecification.getPageExperiences(),
 			draftLayout, draftContentPageSpecification.getPageExperiences());
 
+		SettingsTestUtil.assertSettings(
+			expectedDraftContentPageSpecification.getSettings(),
+			draftContentPageSpecification.getSettings());
+		SettingsTestUtil.assertSettings(
+			expectedPublishedContentPageSpecification.getSettings(),
+			publishedContentPageSpecification.getSettings());
+
 		Assert.assertEquals(
 			expectedDraftContentPageSpecification.
 				getSiteTemplatePageSpecificationExternalReferenceCode(),
@@ -284,10 +309,37 @@ public class PageSpecificationsTestUtil {
 			expectedWidgetPageSpecification.getSettings(),
 			actualWidgetPageSpecification.getSettings());
 
-		Assert.assertTrue(
-			Objects.deepEquals(
-				expectedWidgetPageSpecification.getWidgetPageSections(),
-				actualWidgetPageSpecification.getWidgetPageSections()));
+		Assert.assertArrayEquals(
+			expectedWidgetPageSpecification.getWidgetPageSections(),
+			actualWidgetPageSpecification.getWidgetPageSections());
+	}
+
+	public static void assertWidgetPageSpecifications(
+		PageSpecification[] expectedPageSpecifications,
+		PageSpecification[] actualPageSpecifications) {
+
+		Assert.assertEquals(
+			actualPageSpecifications.toString(),
+			expectedPageSpecifications.length, actualPageSpecifications.length);
+		Assert.assertEquals(
+			actualPageSpecifications.toString(), 1,
+			actualPageSpecifications.length);
+
+		assertWidgetPageSpecification(
+			(WidgetPageSpecification)expectedPageSpecifications[0],
+			(WidgetPageSpecification)actualPageSpecifications[0]);
+	}
+
+	public static void assertWidgetPageSpecifications(
+		PageSpecification[] pageSpecifications,
+		WidgetPageSpecification widgetPageSpecification) {
+
+		Assert.assertEquals(
+			Arrays.toString(pageSpecifications), 1, pageSpecifications.length);
+
+		assertWidgetPageSpecification(
+			widgetPageSpecification,
+			(WidgetPageSpecification)pageSpecifications[0]);
 	}
 
 	public static ContentPageSpecification getContentPageSpecification(
@@ -343,6 +395,15 @@ public class PageSpecificationsTestUtil {
 			draftContentPageSpecificationExternalReferenceCode, null, status);
 	}
 
+	public static PageSpecification[] getContentPageSpecifications(
+		String publishedPageSpecificationExternalReferenceCode) {
+
+		return _getContentPageSpecifications(
+			getCustomFields(), RandomTestUtil.randomString(), null,
+			getCustomFields(), publishedPageSpecificationExternalReferenceCode,
+			null);
+	}
+
 	public static CustomField[] getCustomFields() {
 		return new CustomField[] {
 			_getCustomField(_EXPANDO_ATTRIBUTE_NAMES[0], (String)null),
@@ -357,28 +418,42 @@ public class PageSpecificationsTestUtil {
 		return new ExpandoTableAutocloseable();
 	}
 
-	public static PageSpecification[] getPageSpecificationsWithCustomFields(
-		String publishedPageSpecificationExternalReferenceCode,
-		PageSpecification.Type type) {
+	public static PageSpecification[] getPageSpecifications(
+		String externalReferenceCode, SitePage.Type type) {
 
-		PageSpecification[] pageSpecifications;
+		if (type == SitePage.Type.CONTENT_PAGE) {
+			ContentPageSpecification draftContentPageSpecification =
+				getContentPageSpecification(
+					null, PageSpecification.Status.DRAFT);
 
-		if (type == PageSpecification.Type.CONTENT_PAGE_SPECIFICATION) {
-			pageSpecifications = _getContentPageSpecifications(
-				getCustomFields(), RandomTestUtil.randomString(), null,
-				getCustomFields(),
-				publishedPageSpecificationExternalReferenceCode, null);
-		}
-		else {
-			pageSpecifications = new PageSpecification[] {
-				getWidgetPageSpecification(
-					getCustomFields(),
-					publishedPageSpecificationExternalReferenceCode, null,
-					PageSpecification.Status.APPROVED)
+			ContentPageSpecification publishedContentPageSpecification =
+				getContentPageSpecification(
+					draftContentPageSpecification.getExternalReferenceCode(),
+					PageSpecification.Status.APPROVED);
+
+			publishedContentPageSpecification.setExternalReferenceCode(
+				externalReferenceCode);
+
+			return new PageSpecification[] {
+				publishedContentPageSpecification, draftContentPageSpecification
 			};
 		}
 
-		return pageSpecifications;
+		return new PageSpecification[] {
+			getWidgetPageSpecification(
+				null, externalReferenceCode, null,
+				PageSpecification.Status.APPROVED,
+				new WidgetPageSection[] {
+					new WidgetPageSection() {
+						{
+							setCustomizable(() -> Boolean.FALSE);
+							setId(() -> "column-1");
+							setWidgetPageWidgetInstances(
+								() -> new WidgetPageWidgetInstance[0]);
+						}
+					}
+				})
+		};
 	}
 
 	public static PageSpecification[] getPatchPageSpecifications(
@@ -421,13 +496,41 @@ public class PageSpecificationsTestUtil {
 			getWidgetPageSpecification(
 				getCustomFields(),
 				widgetPageSpecification.getExternalReferenceCode(), null,
-				PageSpecification.Status.APPROVED)
+				PageSpecification.Status.APPROVED,
+				widgetPageSpecification.getWidgetPageSections())
 		};
+	}
+
+	public static WidgetPageSection[] getWidgetPageSections(
+		String layoutTemplateId) {
+
+		List<String> columns = new ArrayList<>();
+
+		if (Objects.equals(layoutTemplateId, "1_column")) {
+			columns.add("column-1");
+		}
+		else if (Objects.equals(layoutTemplateId, "2_columns_ii")) {
+			columns.add("column-1");
+			columns.add("column-2");
+		}
+
+		return TransformUtil.transformToArray(
+			columns,
+			column -> new WidgetPageSection() {
+				{
+					setCustomizable(() -> Boolean.FALSE);
+					setId(() -> column);
+					setWidgetPageWidgetInstances(
+						() -> _getWidgetPageWidgetInstances(column));
+				}
+			},
+			WidgetPageSection.class);
 	}
 
 	public static WidgetPageSpecification getWidgetPageSpecification(
 		CustomField[] customFields, String externalReferenceCode,
-		Settings settings, PageSpecification.Status status) {
+		Settings settings, PageSpecification.Status status,
+		WidgetPageSection[] widgetPageSections) {
 
 		WidgetPageSpecification widgetPageSpecification =
 			new WidgetPageSpecification() {
@@ -440,8 +543,21 @@ public class PageSpecificationsTestUtil {
 		widgetPageSpecification.setExternalReferenceCode(externalReferenceCode);
 		widgetPageSpecification.setSettings(settings);
 		widgetPageSpecification.setStatus(status);
+		widgetPageSpecification.setWidgetPageSections(widgetPageSections);
 
 		return widgetPageSpecification;
+	}
+
+	public static PageSpecification[] getWidgetPageSpecifications(
+		CustomField[] customFields, String layoutTemplateId,
+		String publishedPageSpecificationExternalReferenceCode) {
+
+		return new PageSpecification[] {
+			getWidgetPageSpecification(
+				customFields, publishedPageSpecificationExternalReferenceCode,
+				new Settings(), PageSpecification.Status.APPROVED,
+				getWidgetPageSections(layoutTemplateId))
+		};
 	}
 
 	public static void testPostSiteSiteByExternalReferenceCodePageSpecification(
@@ -637,6 +753,34 @@ public class PageSpecificationsTestUtil {
 		}
 	}
 
+	private static String[] _getActionIds(String roleName) {
+		if (Objects.equals(RoleConstants.GUEST, roleName)) {
+			if (RandomTestUtil.randomBoolean()) {
+				return null;
+			}
+
+			return new String[] {ActionKeys.VIEW};
+		}
+
+		int random = RandomTestUtil.randomInt(0, 3);
+
+		if (random == 0) {
+			return null;
+		}
+
+		if (random == 1) {
+			return new String[] {ActionKeys.VIEW};
+		}
+
+		if (random == 2) {
+			return new String[] {ActionKeys.CONFIGURATION, ActionKeys.VIEW};
+		}
+
+		return new String[] {
+			ActionKeys.ADD_TO_PAGE, ActionKeys.CONFIGURATION, ActionKeys.VIEW
+		};
+	}
+
 	private static ContentPageSpecification[] _getContentPageSpecifications(
 		CustomField[] draftPageSpecificationCustomFields,
 		String draftPageSpecificationExternalReferenceCode,
@@ -725,6 +869,136 @@ public class PageSpecificationsTestUtil {
 		}
 
 		return expectedCustomFields;
+	}
+
+	private static GeneralConfig.ApplicationDecorator
+		_getRandomApplicationDecorator() {
+
+		int random = RandomTestUtil.randomInt(0, 3);
+
+		if (random == 0) {
+			return null;
+		}
+
+		if (random == 1) {
+			return GeneralConfig.ApplicationDecorator.BAREBONE;
+		}
+
+		if (random == 2) {
+			return GeneralConfig.ApplicationDecorator.BORDERLESS;
+		}
+
+		return GeneralConfig.ApplicationDecorator.DECORATE;
+	}
+
+	private static Map<String, Object> _getWidgetConfig() {
+		Map<String, Object> map = new TreeMap<>();
+
+		for (int i = 0; i < RandomTestUtil.randomInt(0, 3); i++) {
+			map.put(
+				RandomTestUtil.randomString(), RandomTestUtil.randomString());
+		}
+
+		if (map.isEmpty()) {
+			return null;
+		}
+
+		return map;
+	}
+
+	private static WidgetLookAndFeelConfig _getWidgetLookAndFeelConfig() {
+		WidgetLookAndFeelConfig widgetLookAndFeelConfig =
+			new WidgetLookAndFeelConfig();
+
+		GeneralConfig generalConfig = new GeneralConfig();
+
+		generalConfig.setApplicationDecorator(
+			() -> _getRandomApplicationDecorator());
+
+		generalConfig.setUseCustomTitle(RandomTestUtil.randomBoolean());
+
+		if (generalConfig.getUseCustomTitle() &&
+			RandomTestUtil.randomBoolean()) {
+
+			generalConfig.setCustomTitle_i18n(
+				() -> HashMapBuilder.put(
+					LocaleUtil.toBCP47LanguageId(LocaleUtil.SPAIN),
+					RandomTestUtil.randomString()
+				).put(
+					LocaleUtil.toBCP47LanguageId(LocaleUtil.US),
+					RandomTestUtil.randomString()
+				).build());
+		}
+
+		widgetLookAndFeelConfig.setGeneralConfig(generalConfig);
+
+		return widgetLookAndFeelConfig;
+	}
+
+	private static WidgetPageWidgetInstance[] _getWidgetPageWidgetInstances(
+		String column) {
+
+		List<WidgetPageWidgetInstance> widgetPageWidgetInstances =
+			new ArrayList<>();
+
+		for (int i = 0; i < RandomTestUtil.randomInt(0, 3); i++) {
+			WidgetPageWidgetInstance widgetPageWidgetInstance =
+				new WidgetPageWidgetInstance();
+
+			String widgetName = AssetPublisherPortletKeys.ASSET_PUBLISHER;
+
+			if (RandomTestUtil.randomBoolean()) {
+				widgetName = SiteNavigationMenuPortletKeys.SITE_NAVIGATION_MENU;
+			}
+
+			String widgetInstanceId = RandomTestUtil.randomString();
+
+			widgetPageWidgetInstance.setExternalReferenceCode(
+				PortletIdCodec.encode(widgetName, widgetInstanceId));
+
+			widgetPageWidgetInstance.setParentSectionId(column);
+			widgetPageWidgetInstance.setPosition(i);
+			widgetPageWidgetInstance.setWidgetConfig(() -> _getWidgetConfig());
+			widgetPageWidgetInstance.setWidgetInstanceId(widgetInstanceId);
+			widgetPageWidgetInstance.setWidgetLookAndFeelConfig(
+				() -> _getWidgetLookAndFeelConfig());
+			widgetPageWidgetInstance.setWidgetName(widgetName);
+			widgetPageWidgetInstance.setWidgetPermissions(
+				() -> _getWidgetPermissions());
+
+			widgetPageWidgetInstances.add(widgetPageWidgetInstance);
+		}
+
+		return widgetPageWidgetInstances.toArray(
+			new WidgetPageWidgetInstance[0]);
+	}
+
+	private static WidgetPermission[] _getWidgetPermissions() {
+		WidgetPermission[] widgetPermissions = TransformUtil.transformToArray(
+			ListUtil.fromArray(
+				RoleConstants.GUEST, RoleConstants.SITE_CONTENT_REVIEWER,
+				RoleConstants.SITE_MEMBER),
+			roleName -> {
+				String[] actionIds = _getActionIds(roleName);
+
+				if (actionIds == null) {
+					return null;
+				}
+
+				WidgetPermission widgetPermission = new WidgetPermission();
+
+				widgetPermission.setActionIds(actionIds);
+				widgetPermission.setRoleName(roleName);
+
+				return widgetPermission;
+			},
+			WidgetPermission.class);
+
+		if (ArrayUtil.isEmpty(widgetPermissions)) {
+			return null;
+		}
+
+		return widgetPermissions;
 	}
 
 	private static boolean _isPublished(Layout draftLayout) {

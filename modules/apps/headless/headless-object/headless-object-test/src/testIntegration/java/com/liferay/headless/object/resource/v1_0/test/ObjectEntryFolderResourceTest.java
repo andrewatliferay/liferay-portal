@@ -18,6 +18,8 @@ import com.liferay.object.service.ObjectEntryFolderLocalService;
 import com.liferay.petra.lang.SafeCloseable;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
+import com.liferay.portal.configuration.test.util.CompanyConfigurationTemporarySwapper;
+import com.liferay.portal.configuration.test.util.ConfigurationTemporarySwapper;
 import com.liferay.portal.kernel.lazy.referencing.LazyReferencingThreadLocal;
 import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.ResourceConstants;
@@ -41,8 +43,12 @@ import com.liferay.portal.kernel.test.util.RandomTestUtil;
 import com.liferay.portal.kernel.test.util.RoleTestUtil;
 import com.liferay.portal.kernel.test.util.TestPropsValues;
 import com.liferay.portal.kernel.test.util.UserTestUtil;
+import com.liferay.portal.kernel.util.HashMapBuilder;
+import com.liferay.portal.kernel.util.HashMapDictionaryBuilder;
 import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.StringUtil;
+import com.liferay.portal.kernel.util.UnicodeProperties;
+import com.liferay.portal.kernel.util.UnicodePropertiesBuilder;
 import com.liferay.portal.kernel.workflow.WorkflowConstants;
 import com.liferay.portal.odata.entity.EntityField;
 import com.liferay.portal.odata.entity.StringEntityField;
@@ -55,6 +61,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -107,6 +114,17 @@ public class ObjectEntryFolderResourceTest
 
 		_testDepotEntryGroup = _groupLocalService.getGroup(
 			_testDepotEntry.getGroupId());
+	}
+
+	@Override
+	@Test
+	public void testGetObjectEntryFolder() throws Exception {
+		super.testGetObjectEntryFolder();
+
+		_testGetObjectEntryFolderActionsWithCompanySharingDisabled();
+		_testGetObjectEntryFolderActionsWithGroupSharingDisabled();
+		_testGetObjectEntryFolderActionsWithSharingEnabled();
+		_testGetObjectEntryFolderActionsWithSystemSharingDisabled();
 	}
 
 	@Override
@@ -174,6 +192,56 @@ public class ObjectEntryFolderResourceTest
 		_testPostScopeScopeKeyObjectEntryFolderWithMissingParentObjectEntryFolderReference();
 		_testPostScopeScopeKeyObjectEntryFolderWithNonexistentParentObjectEntryFolderByExternalReferenceCode();
 		_testPostScopeScopeKeyObjectEntryFolderWithNonexistentParentObjectEntryFolderByObjectEntryFolderId();
+	}
+
+	@FeatureFlag("LPD-53981")
+	@Override
+	@Test
+	public void testPostScopeScopeKeyObjectEntryFolderByExternalReferenceCodeRestore()
+		throws Exception {
+
+		super.
+			testPostScopeScopeKeyObjectEntryFolderByExternalReferenceCodeRestore();
+
+		ObjectEntryFolder postObjectEntryFolder =
+			testPostScopeScopeKeyObjectEntryFolderByExternalReferenceCodeRestore_addObjectEntryFolder(
+				randomObjectEntryFolder());
+
+		objectEntryFolderResource.
+			deleteScopeScopeKeyObjectEntryFolderByExternalReferenceCode(
+				String.valueOf(_testDepotEntry.getGroupId()),
+				postObjectEntryFolder.getExternalReferenceCode());
+
+		ObjectEntryFolder getObjectEntryFolder =
+			objectEntryFolderResource.getObjectEntryFolder(
+				postObjectEntryFolder.getId());
+
+		assertEquals(postObjectEntryFolder, getObjectEntryFolder);
+		assertValid(getObjectEntryFolder);
+
+		Map<String, Map<String, String>> actions =
+			getObjectEntryFolder.getActions();
+
+		Assert.assertTrue(actions.containsKey("restore"));
+
+		Assert.assertNotNull(getObjectEntryFolder.getRemovedBy());
+		Assert.assertNotNull(getObjectEntryFolder.getRemovedDate());
+
+		postObjectEntryFolder =
+			objectEntryFolderResource.
+				postScopeScopeKeyObjectEntryFolderByExternalReferenceCodeRestore(
+					String.valueOf(_testDepotEntry.getGroupId()),
+					postObjectEntryFolder.getExternalReferenceCode());
+
+		assertEquals(getObjectEntryFolder, postObjectEntryFolder);
+		assertValid(postObjectEntryFolder);
+
+		actions = postObjectEntryFolder.getActions();
+
+		Assert.assertFalse(actions.containsKey("restore"));
+
+		Assert.assertNull(postObjectEntryFolder.getRemovedBy());
+		Assert.assertNull(postObjectEntryFolder.getRemovedDate());
 	}
 
 	@Override
@@ -462,6 +530,16 @@ public class ObjectEntryFolderResourceTest
 
 	@Override
 	protected ObjectEntryFolder
+			testPostScopeScopeKeyObjectEntryFolderByExternalReferenceCodeRestore_addObjectEntryFolder(
+				ObjectEntryFolder objectEntryFolder)
+		throws Exception {
+
+		return objectEntryFolderResource.postScopeScopeKeyObjectEntryFolder(
+			String.valueOf(_testDepotEntry.getGroupId()), objectEntryFolder);
+	}
+
+	@Override
+	protected ObjectEntryFolder
 			testPostScopeScopeKeyObjectEntryFolderByExternalReferenceCodeSubscribe_addObjectEntryFolder()
 		throws Exception {
 
@@ -562,6 +640,120 @@ public class ObjectEntryFolderResourceTest
 			ResourceConstants.SCOPE_COMPANY,
 			String.valueOf(TestPropsValues.getCompanyId()), role.getRoleId(),
 			actionId);
+	}
+
+	private Map<String, String> _getActionValue(String href, String method) {
+		return HashMapBuilder.put(
+			"href", href
+		).put(
+			"method", method
+		).build();
+	}
+
+	private Map<String, Map<String, String>> _getExpectedActions(
+		long objectEntryFolderId, boolean sharingEnabled) {
+
+		String href =
+			"http://localhost:8080/o/headless-object/v1.0" +
+				"/object-entry-folders/" + objectEntryFolderId;
+
+		return HashMapBuilder.<String, Map<String, String>>put(
+			"delete", _getActionValue(href, "DELETE")
+		).put(
+			"get", _getActionValue(href, "GET")
+		).put(
+			"share",
+			() -> {
+				if (sharingEnabled) {
+					return _getActionValue(href, "GET");
+				}
+
+				return null;
+			}
+		).put(
+			"update", _getActionValue(href, "PATCH")
+		).build();
+	}
+
+	private void _testGetObjectEntryFolderActions(boolean sharingEnabled)
+		throws Exception {
+
+		ObjectEntryFolder postObjectEntryFolder =
+			testGetObjectEntryFolder_addObjectEntryFolder();
+
+		ObjectEntryFolder getObjectEntryFolder =
+			objectEntryFolderResource.getObjectEntryFolder(
+				postObjectEntryFolder.getId());
+
+		Assert.assertEquals(
+			_getExpectedActions(getObjectEntryFolder.getId(), sharingEnabled),
+			getObjectEntryFolder.getActions());
+	}
+
+	@TestInfo("LPD-62553")
+	private void _testGetObjectEntryFolderActionsWithCompanySharingDisabled()
+		throws Exception {
+
+		try (CompanyConfigurationTemporarySwapper
+				companyConfigurationTemporarySwapper =
+					new CompanyConfigurationTemporarySwapper(
+						_testDepotEntryGroup.getCompanyId(),
+						"com.liferay.sharing.internal.configuration." +
+							"SharingCompanyConfiguration",
+						HashMapDictionaryBuilder.<String, Object>put(
+							"enabled", false
+						).build())) {
+
+			_testGetObjectEntryFolderActions(false);
+		}
+	}
+
+	@TestInfo("LPD-62553")
+	private void _testGetObjectEntryFolderActionsWithGroupSharingDisabled()
+		throws Exception {
+
+		UnicodeProperties originalUnicodeProperties =
+			_testDepotEntryGroup.getTypeSettingsProperties();
+
+		_groupLocalService.updateGroup(
+			_testDepotEntryGroup.getGroupId(),
+			UnicodePropertiesBuilder.create(
+				originalUnicodeProperties, true
+			).put(
+				"sharingEnabled", false
+			).buildString());
+
+		try {
+			_testGetObjectEntryFolderActions(false);
+		}
+		finally {
+			_groupLocalService.updateGroup(
+				_testDepotEntryGroup.getGroupId(),
+				originalUnicodeProperties.toString());
+		}
+	}
+
+	@TestInfo("LPD-62553")
+	private void _testGetObjectEntryFolderActionsWithSharingEnabled()
+		throws Exception {
+
+		_testGetObjectEntryFolderActions(true);
+	}
+
+	@TestInfo("LPD-62553")
+	private void _testGetObjectEntryFolderActionsWithSystemSharingDisabled()
+		throws Exception {
+
+		try (ConfigurationTemporarySwapper configurationTemporarySwapper =
+				new ConfigurationTemporarySwapper(
+					"com.liferay.sharing.internal.configuration." +
+						"SharingSystemConfiguration",
+					HashMapDictionaryBuilder.<String, Object>put(
+						"enabled", false
+					).build())) {
+
+			_testGetObjectEntryFolderActions(false);
+		}
 	}
 
 	private void _testPatchScopeScopeKeyObjectEntryFolderByExternalReferenceCodeWithGroupKey()

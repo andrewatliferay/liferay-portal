@@ -15,17 +15,25 @@ import com.liferay.object.rest.dto.v1_0.ObjectEntry;
 import com.liferay.object.rest.manager.v1_0.DefaultObjectEntryManager;
 import com.liferay.object.rest.manager.v1_0.DefaultObjectEntryManagerProvider;
 import com.liferay.object.rest.manager.v1_0.ObjectEntryManagerRegistry;
+import com.liferay.object.rest.odata.entity.v1_0.provider.EntityModelProvider;
 import com.liferay.object.service.ObjectDefinitionLocalService;
 import com.liferay.object.service.ObjectEntryLocalService;
 import com.liferay.object.service.ObjectRelationshipLocalService;
+import com.liferay.portal.kernel.search.Sort;
+import com.liferay.portal.kernel.search.filter.Filter;
 import com.liferay.portal.kernel.service.PersistedModelLocalService;
+import com.liferay.portal.kernel.util.GetterUtil;
+import com.liferay.portal.kernel.util.ParamUtil;
 import com.liferay.portal.kernel.util.StringUtil;
+import com.liferay.portal.odata.entity.EntityModel;
 import com.liferay.portal.service.PersistedModelLocalServiceRegistryUtil;
+import com.liferay.portal.vulcan.aggregation.Aggregation;
 import com.liferay.portal.vulcan.dto.converter.DefaultDTOConverterContext;
 import com.liferay.portal.vulcan.pagination.Page;
 import com.liferay.portal.vulcan.pagination.Pagination;
 
 import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MultivaluedMap;
 
 import java.util.Map;
 
@@ -36,12 +44,14 @@ public class ObjectEntryRelatedObjectsResourceImpl
 	extends BaseObjectEntryRelatedObjectsResourceImpl {
 
 	public ObjectEntryRelatedObjectsResourceImpl(
+		EntityModelProvider entityModelProvider,
 		ObjectDefinitionLocalService objectDefinitionLocalService,
 		ObjectEntryLocalService objectEntryLocalService,
 		ObjectEntryManagerRegistry objectEntryManagerRegistry,
 		ObjectRelatedModelsProviderRegistry objectRelatedModelsProviderRegistry,
 		ObjectRelationshipLocalService objectRelationshipLocalService) {
 
+		_entityModelProvider = entityModelProvider;
 		_objectDefinitionLocalService = objectDefinitionLocalService;
 		_objectEntryLocalService = objectEntryLocalService;
 		_objectEntryManagerRegistry = objectEntryManagerRegistry;
@@ -58,17 +68,9 @@ public class ObjectEntryRelatedObjectsResourceImpl
 				String relatedExternalReferenceCode)
 		throws Exception {
 
-		DefaultObjectEntryManager defaultObjectEntryManager =
-			DefaultObjectEntryManagerProvider.provide(
-				_objectEntryManagerRegistry.getObjectEntryManager(
-					_objectDefinition.getStorageType()));
-
-		defaultObjectEntryManager.deleteRelatedObjectEntry(
-			relatedExternalReferenceCode,
-			_objectRelationshipLocalService.getObjectRelationship(
-				_objectDefinition.getObjectDefinitionId(),
-				objectRelationshipName),
-			currentExternalReferenceCode);
+		_deleteRelatedObjectEntry(
+			null, currentExternalReferenceCode, objectRelationshipName,
+			relatedExternalReferenceCode);
 	}
 
 	@Override
@@ -114,8 +116,7 @@ public class ObjectEntryRelatedObjectsResourceImpl
 		ObjectRelatedModelsProvider objectRelatedModelsProvider =
 			_objectRelatedModelsProviderRegistry.getObjectRelatedModelsProvider(
 				relatedObjectDefinition.getClassName(),
-				relatedObjectDefinition.getCompanyId(),
-				objectRelationship.getType());
+				contextCompany.getCompanyId(), objectRelationship.getType());
 
 		objectRelatedModelsProvider.disassociateRelatedModels(
 			contextUser.getUserId(),
@@ -124,36 +125,30 @@ public class ObjectEntryRelatedObjectsResourceImpl
 	}
 
 	@Override
+	public void
+			deleteScopeScopeKeyByExternalReferenceCodeCurrentExternalReferenceCodeObjectRelationshipNameRelatedExternalReferenceCode(
+				String scopeKey, String currentExternalReferenceCode,
+				String objectRelationshipName,
+				String relatedExternalReferenceCode)
+		throws Exception {
+
+		_deleteRelatedObjectEntry(
+			scopeKey, currentExternalReferenceCode, objectRelationshipName,
+			relatedExternalReferenceCode);
+	}
+
+	@Override
 	public Page<Object>
 			getByExternalReferenceCodeCurrentExternalReferenceCodeObjectRelationshipNamePage(
 				String currentExternalReferenceCode,
-				String objectRelationshipName, Pagination pagination)
+				String objectRelationshipName, String search,
+				Aggregation aggregation, Filter filter, Pagination pagination,
+				Sort[] sorts)
 		throws Exception {
 
-		DefaultObjectEntryManager defaultObjectEntryManager =
-			DefaultObjectEntryManagerProvider.provide(
-				_objectEntryManagerRegistry.getObjectEntryManager(
-					_objectDefinition.getStorageType()));
-
-		ObjectRelationship objectRelationship =
-			_objectRelationshipLocalService.getObjectRelationship(
-				_objectDefinition.getObjectDefinitionId(),
-				objectRelationshipName);
-
-		Page<ObjectEntry> page =
-			defaultObjectEntryManager.getRelatedObjectEntries(
-				_getDTOConverterContext(null), currentExternalReferenceCode,
-				objectRelationship, pagination);
-
-		return Page.of(
-			page.getActions(),
-			transform(
-				page.getItems(),
-				objectEntry -> _getRelatedObjectEntry(
-					_objectDefinitionLocalService.getObjectDefinition(
-						objectRelationship.getObjectDefinitionId2()),
-					objectEntry)),
-			pagination, page.getTotalCount());
+		return _getRelatedObjectEntries(
+			aggregation, currentExternalReferenceCode, objectRelationshipName,
+			pagination, null, search, sorts);
 	}
 
 	@Override
@@ -218,6 +213,21 @@ public class ObjectEntryRelatedObjectsResourceImpl
 	}
 
 	@Override
+	public EntityModel getEntityModel(MultivaluedMap multivaluedMap)
+		throws Exception {
+
+		ObjectRelationship objectRelationship =
+			_objectRelationshipLocalService.getObjectRelationship(
+				_objectDefinition.getObjectDefinitionId(),
+				GetterUtil.getString(
+					multivaluedMap.getFirst("objectRelationshipName")));
+
+		return _entityModelProvider.getEntityModel(
+			_objectDefinitionLocalService.getObjectDefinition(
+				objectRelationship.getObjectDefinitionId2()));
+	}
+
+	@Override
 	public Object getObjectEntryObjectRelationshipNameRelatedObjectEntry(
 			Long currentObjectEntryId, String objectRelationshipName,
 			Long relatedObjectEntryId)
@@ -237,6 +247,41 @@ public class ObjectEntryRelatedObjectsResourceImpl
 	}
 
 	@Override
+	public Page<Object>
+			getScopeScopeKeyByExternalReferenceCodeCurrentExternalReferenceCodeObjectRelationshipNamePage(
+				String scopeKey, String currentExternalReferenceCode,
+				String objectRelationshipName, String search,
+				Aggregation aggregation, Filter filter, Pagination pagination,
+				Sort[] sorts)
+		throws Exception {
+
+		return _getRelatedObjectEntries(
+			aggregation, currentExternalReferenceCode, objectRelationshipName,
+			pagination, scopeKey, search, sorts);
+	}
+
+	@Override
+	public Object
+			getScopeScopeKeyByExternalReferenceCodeCurrentExternalReferenceCodeObjectRelationshipNameRelatedExternalReferenceCode(
+				String scopeKey, String currentExternalReferenceCode,
+				String objectRelationshipName,
+				String relatedExternalReferenceCode)
+		throws Exception {
+
+		DefaultObjectEntryManager defaultObjectEntryManager =
+			DefaultObjectEntryManagerProvider.provide(
+				_objectEntryManagerRegistry.getObjectEntryManager(
+					_objectDefinition.getStorageType()));
+
+		return defaultObjectEntryManager.getRelatedObjectEntry(
+			_getDTOConverterContext(null), currentExternalReferenceCode,
+			_objectRelationshipLocalService.getObjectRelationship(
+				_objectDefinition.getObjectDefinitionId(),
+				objectRelationshipName),
+			relatedExternalReferenceCode, scopeKey);
+	}
+
+	@Override
 	public Object
 			patchByExternalReferenceCodeCurrentExternalReferenceCodeObjectRelationshipNameRelatedExternalReferenceCode(
 				String currentExternalReferenceCode, ObjectEntry objectEntry,
@@ -249,27 +294,13 @@ public class ObjectEntryRelatedObjectsResourceImpl
 				_objectEntryManagerRegistry.getObjectEntryManager(
 					_objectDefinition.getStorageType()));
 
-		ObjectEntry currentObjectEntry =
-			defaultObjectEntryManager.getObjectEntry(
-				_objectDefinition.getCompanyId(), _getDTOConverterContext(null),
-				currentExternalReferenceCode, _objectDefinition, null);
-
-		ObjectRelationship objectRelationship =
+		return defaultObjectEntryManager.partialUpdateRelatedObjectEntry(
+			_getDTOConverterContext(null), relatedExternalReferenceCode,
+			objectEntry,
 			_objectRelationshipLocalService.getObjectRelationship(
 				_objectDefinition.getObjectDefinitionId(),
-				objectRelationshipName);
-
-		ObjectEntry relatedObjectEntry =
-			defaultObjectEntryManager.getObjectEntry(
-				_objectDefinition.getCompanyId(), _getDTOConverterContext(null),
-				relatedExternalReferenceCode,
-				_objectDefinitionLocalService.getObjectDefinition(
-					objectRelationship.getObjectDefinitionId2()),
-				null);
-
-		return patchCurrentObjectEntry(
-			currentObjectEntry.getId(), objectEntry, objectRelationshipName,
-			relatedObjectEntry.getId());
+				objectRelationshipName),
+			currentExternalReferenceCode, null);
 	}
 
 	@Override
@@ -283,17 +314,35 @@ public class ObjectEntryRelatedObjectsResourceImpl
 				_objectEntryManagerRegistry.getObjectEntryManager(
 					_objectDefinition.getStorageType()));
 
-		ObjectRelationship objectRelationship =
+		return defaultObjectEntryManager.partialUpdateRelatedObjectEntry(
+			_getDTOConverterContext(currentObjectEntryId), objectEntry,
+			relatedObjectEntryId,
 			_objectRelationshipLocalService.getObjectRelationship(
 				_objectDefinition.getObjectDefinitionId(),
-				objectRelationshipName);
+				objectRelationshipName),
+			currentObjectEntryId);
+	}
+
+	@Override
+	public Object
+			patchScopeScopeKeyByExternalReferenceCodeCurrentExternalReferenceCodeObjectRelationshipNameRelatedExternalReferenceCode(
+				String scopeKey, String currentExternalReferenceCode,
+				ObjectEntry objectEntry, String objectRelationshipName,
+				String relatedExternalReferenceCode)
+		throws Exception {
+
+		DefaultObjectEntryManager defaultObjectEntryManager =
+			DefaultObjectEntryManagerProvider.provide(
+				_objectEntryManagerRegistry.getObjectEntryManager(
+					_objectDefinition.getStorageType()));
 
 		return defaultObjectEntryManager.partialUpdateRelatedObjectEntry(
-			_getDTOConverterContext(null),
-			_objectDefinitionLocalService.getObjectDefinition(
-				objectRelationship.getObjectDefinitionId2()),
-			objectEntry, relatedObjectEntryId, objectRelationship,
-			currentObjectEntryId);
+			_getDTOConverterContext(null), relatedExternalReferenceCode,
+			objectEntry,
+			_objectRelationshipLocalService.getObjectRelationship(
+				_objectDefinition.getObjectDefinitionId(),
+				objectRelationshipName),
+			currentExternalReferenceCode, scopeKey);
 	}
 
 	@Override
@@ -302,15 +351,18 @@ public class ObjectEntryRelatedObjectsResourceImpl
 			String objectRelationshipName)
 		throws Exception {
 
-		com.liferay.object.model.ObjectEntry currentObjectEntry =
-			_objectEntryLocalService.getObjectEntry(
-				currentExternalReferenceCode,
-				ObjectDefinitionConstants.GROUP_ID_DEFAULT,
-				_objectDefinition.getObjectDefinitionId());
+		DefaultObjectEntryManager defaultObjectEntryManager =
+			DefaultObjectEntryManagerProvider.provide(
+				_objectEntryManagerRegistry.getObjectEntryManager(
+					_objectDefinition.getStorageType()));
 
-		return postObjectEntryObjectRelationshipName(
-			currentObjectEntry.getObjectEntryId(), objectEntry,
-			objectRelationshipName);
+		return defaultObjectEntryManager.addRelatedObjectEntry(
+			_getDTOConverterContext(null), currentExternalReferenceCode,
+			objectEntry,
+			_objectRelationshipLocalService.getObjectRelationship(
+				_objectDefinition.getObjectDefinitionId(),
+				objectRelationshipName),
+			null);
 	}
 
 	@Override
@@ -319,10 +371,24 @@ public class ObjectEntryRelatedObjectsResourceImpl
 			String objectRelationshipName)
 		throws Exception {
 
-		ObjectRelationship objectRelationship =
+		DefaultObjectEntryManager defaultObjectEntryManager =
+			DefaultObjectEntryManagerProvider.provide(
+				_objectEntryManagerRegistry.getObjectEntryManager(
+					_objectDefinition.getStorageType()));
+
+		return defaultObjectEntryManager.addRelatedObjectEntry(
+			_getDTOConverterContext(null), objectEntry, currentObjectEntryId,
 			_objectRelationshipLocalService.getObjectRelationship(
 				_objectDefinition.getObjectDefinitionId(),
-				objectRelationshipName);
+				objectRelationshipName));
+	}
+
+	@Override
+	public Object
+			postScopeScopeKeyByExternalReferenceCodeObjectEntryObjectRelationshipName(
+				String scopeKey, String currentExternalReferenceCode,
+				ObjectEntry objectEntry, String objectRelationshipName)
+		throws Exception {
 
 		DefaultObjectEntryManager defaultObjectEntryManager =
 			DefaultObjectEntryManagerProvider.provide(
@@ -330,17 +396,18 @@ public class ObjectEntryRelatedObjectsResourceImpl
 					_objectDefinition.getStorageType()));
 
 		return defaultObjectEntryManager.addRelatedObjectEntry(
-			_getDTOConverterContext(currentObjectEntryId),
-			ObjectRelationshipUtil.getRelatedObjectDefinition(
-				_objectDefinition, objectRelationship),
-			objectEntry, objectRelationship, currentObjectEntryId,
-			objectEntry.getScopeKey());
+			_getDTOConverterContext(null), currentExternalReferenceCode,
+			objectEntry,
+			_objectRelationshipLocalService.getObjectRelationship(
+				_objectDefinition.getObjectDefinitionId(),
+				objectRelationshipName),
+			scopeKey);
 	}
 
 	@Override
 	public Object
 			putByExternalReferenceCodeCurrentExternalReferenceCodeObjectRelationshipNameRelatedExternalReferenceCode(
-				String currentExternalReferenceCode, ObjectEntry objectEntry,
+				String currentExternalReferenceCode,
 				String objectRelationshipName,
 				String relatedExternalReferenceCode)
 		throws Exception {
@@ -367,14 +434,14 @@ public class ObjectEntryRelatedObjectsResourceImpl
 				relatedObjectDefinition.getObjectDefinitionId());
 
 		return putCurrentObjectEntry(
-			currentObjectEntry.getObjectEntryId(), objectEntry,
-			objectRelationshipName, relatedObjectEntry.getObjectEntryId());
+			currentObjectEntry.getObjectEntryId(), objectRelationshipName,
+			relatedObjectEntry.getObjectEntryId());
 	}
 
 	@Override
 	public Object putCurrentObjectEntry(
-			Long currentObjectEntryId, ObjectEntry objectEntry,
-			String objectRelationshipName, Long relatedObjectEntryId)
+			Long currentObjectEntryId, String objectRelationshipName,
+			Long relatedObjectEntryId)
 		throws Exception {
 
 		DefaultObjectEntryManager defaultObjectEntryManager =
@@ -391,13 +458,6 @@ public class ObjectEntryRelatedObjectsResourceImpl
 			_objectDefinitionLocalService.getObjectDefinition(
 				objectRelationship.getObjectDefinitionId2());
 
-		if (objectRelationship.isEdge()) {
-			return defaultObjectEntryManager.updateRelatedObjectEntry(
-				_getDTOConverterContext(currentObjectEntryId),
-				relatedObjectDefinition, relatedObjectEntryId, objectEntry,
-				objectRelationship, currentObjectEntryId);
-		}
-
 		if (relatedObjectDefinition.isUnmodifiableSystemObject()) {
 			return defaultObjectEntryManager.
 				addSystemObjectRelationshipMappingTableValues(
@@ -411,6 +471,28 @@ public class ObjectEntryRelatedObjectsResourceImpl
 				_getDTOConverterContext(currentObjectEntryId),
 				objectRelationship, currentObjectEntryId,
 				relatedObjectEntryId));
+	}
+
+	@Override
+	public Object
+			putScopeScopeKeyByExternalReferenceCodeCurrentExternalReferenceCodeObjectRelationshipNameRelatedExternalReferenceCode(
+				String scopeKey, String currentExternalReferenceCode,
+				ObjectEntry objectEntry, String objectRelationshipName,
+				String relatedExternalReferenceCode)
+		throws Exception {
+
+		DefaultObjectEntryManager defaultObjectEntryManager =
+			DefaultObjectEntryManagerProvider.provide(
+				_objectEntryManagerRegistry.getObjectEntryManager(
+					_objectDefinition.getStorageType()));
+
+		return defaultObjectEntryManager.updateRelatedObjectEntry(
+			_getDTOConverterContext(null), relatedExternalReferenceCode,
+			objectEntry,
+			_objectRelationshipLocalService.getObjectRelationship(
+				_objectDefinition.getObjectDefinitionId(),
+				objectRelationshipName),
+			currentExternalReferenceCode, scopeKey);
 	}
 
 	private void _checkCurrentObjectEntry(
@@ -450,6 +532,24 @@ public class ObjectEntryRelatedObjectsResourceImpl
 		persistedModelLocalService.getPersistedModel(objectEntryId);
 	}
 
+	private void _deleteRelatedObjectEntry(
+			String scopeKey, String currentExternalReferenceCode,
+			String objectRelationshipName, String relatedExternalReferenceCode)
+		throws Exception {
+
+		DefaultObjectEntryManager defaultObjectEntryManager =
+			DefaultObjectEntryManagerProvider.provide(
+				_objectEntryManagerRegistry.getObjectEntryManager(
+					_objectDefinition.getStorageType()));
+
+		defaultObjectEntryManager.deleteRelatedObjectEntry(
+			relatedExternalReferenceCode,
+			_objectRelationshipLocalService.getObjectRelationship(
+				_objectDefinition.getObjectDefinitionId(),
+				objectRelationshipName),
+			currentExternalReferenceCode, scopeKey);
+	}
+
 	private DefaultDTOConverterContext _getDTOConverterContext(
 		Long objectEntryId) {
 
@@ -458,6 +558,54 @@ public class ObjectEntryRelatedObjectsResourceImpl
 			contextHttpServletRequest, objectEntryId,
 			contextAcceptLanguage.getPreferredLocale(), contextUriInfo,
 			contextUser);
+	}
+
+	private String _getFilterString() {
+		if (contextHttpServletRequest != null) {
+			return ParamUtil.getString(contextHttpServletRequest, "filter");
+		}
+
+		if (contextUriInfo == null) {
+			return null;
+		}
+
+		MultivaluedMap<String, String> queryParameters =
+			contextUriInfo.getQueryParameters();
+
+		return queryParameters.getFirst("filter");
+	}
+
+	private Page<Object> _getRelatedObjectEntries(
+			Aggregation aggregation, String externalReferenceCode,
+			String objectRelationshipName, Pagination pagination,
+			String scopeKey, String search, Sort[] sorts)
+		throws Exception {
+
+		DefaultObjectEntryManager defaultObjectEntryManager =
+			DefaultObjectEntryManagerProvider.provide(
+				_objectEntryManagerRegistry.getObjectEntryManager(
+					_objectDefinition.getStorageType()));
+
+		ObjectRelationship objectRelationship =
+			_objectRelationshipLocalService.getObjectRelationship(
+				_objectDefinition.getObjectDefinitionId(),
+				objectRelationshipName);
+
+		Page<ObjectEntry> page =
+			defaultObjectEntryManager.getRelatedObjectEntries(
+				aggregation, _getDTOConverterContext(null),
+				externalReferenceCode, _getFilterString(), objectRelationship,
+				pagination, scopeKey, search, sorts);
+
+		return Page.of(
+			page.getActions(), page.getFacets(),
+			transform(
+				page.getItems(),
+				objectEntry -> _getRelatedObjectEntry(
+					_objectDefinitionLocalService.getObjectDefinition(
+						objectRelationship.getObjectDefinitionId2()),
+					objectEntry)),
+			pagination, page.getTotalCount());
 	}
 
 	private ObjectEntry _getRelatedObjectEntry(
@@ -490,6 +638,8 @@ public class ObjectEntryRelatedObjectsResourceImpl
 
 		return objectEntry;
 	}
+
+	private final EntityModelProvider _entityModelProvider;
 
 	@Context
 	private ObjectDefinition _objectDefinition;

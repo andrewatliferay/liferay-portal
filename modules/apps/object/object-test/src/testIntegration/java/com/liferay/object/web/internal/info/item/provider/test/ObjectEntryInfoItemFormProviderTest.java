@@ -327,18 +327,30 @@ public class ObjectEntryInfoItemFormProviderTest {
 			infoForm.getInfoField("parentTextObjectFieldName"));
 
 		InfoFieldSetEntry infoFieldSetEntry = infoForm.getInfoFieldSetEntry(
-			_objectRelationship.getName());
+			_parentObjectDefinition.getName());
 
 		Assert.assertNotNull(infoFieldSetEntry);
 		Assert.assertTrue(infoFieldSetEntry instanceof InfoFieldSet);
 
-		InfoFieldSet childInfoFieldSet = (InfoFieldSet)infoFieldSetEntry;
+		InfoFieldSet defaultInfoFieldSet = (InfoFieldSet)infoFieldSetEntry;
+
+		InfoFieldSetEntry relationshipInfoFieldSetEntry =
+			defaultInfoFieldSet.getInfoFieldSetEntry(
+				_objectRelationship.getName());
+
+		Assert.assertNotNull(relationshipInfoFieldSetEntry);
+		Assert.assertTrue(
+			relationshipInfoFieldSetEntry instanceof InfoFieldSet);
+
+		InfoFieldSet relationshipInfoFieldSet =
+			(InfoFieldSet)relationshipInfoFieldSetEntry;
 
 		Assert.assertNotNull(
-			childInfoFieldSet.getInfoFieldSetEntry(
+			relationshipInfoFieldSet.getInfoFieldSetEntry(
 				"attachmentObjectFieldName"));
 		Assert.assertNotNull(
-			childInfoFieldSet.getInfoFieldSetEntry("picklistObjectFieldName"));
+			relationshipInfoFieldSet.getInfoFieldSetEntry(
+				"picklistObjectFieldName"));
 	}
 
 	private ListTypeEntry _addListTypeEntry() throws Exception {
@@ -362,7 +374,8 @@ public class ObjectEntryInfoItemFormProviderTest {
 			LocalizedMapUtil.getLocalizedMap(RandomTestUtil.randomString()),
 			true, ObjectDefinitionConstants.SCOPE_SITE,
 			ObjectDefinitionConstants.STORAGE_TYPE_DEFAULT,
-			Collections.emptyList(), Arrays.asList(objectFields));
+			Collections.emptyList(), Arrays.asList(objectFields),
+			Collections.emptyList());
 	}
 
 	private void _addObjectStateTransition(

@@ -33,9 +33,11 @@ import com.liferay.saml.persistence.model.SamlIdpSpSession;
 import com.liferay.saml.persistence.model.SamlIdpSsoSession;
 import com.liferay.saml.persistence.model.SamlPeerBinding;
 import com.liferay.saml.persistence.model.SamlSpSession;
+import com.liferay.saml.persistence.service.SamlIdpSpConnectionLocalService;
 import com.liferay.saml.persistence.service.SamlIdpSpSessionLocalService;
 import com.liferay.saml.persistence.service.SamlIdpSsoSessionLocalService;
 import com.liferay.saml.persistence.service.SamlPeerBindingLocalService;
+import com.liferay.saml.persistence.service.SamlSpIdpConnectionLocalService;
 import com.liferay.saml.runtime.SamlException;
 import com.liferay.saml.runtime.exception.UnsolicitedLogoutResponseException;
 import com.liferay.saml.runtime.exception.UnsupportedBindingException;
@@ -779,6 +781,38 @@ public class SingleLogoutProfileImpl
 		}
 	}
 
+	private boolean _isIdpSpConnection(String entityId) {
+		try {
+			_samlIdpSpConnectionLocalService.getSamlIdpSpConnection(
+				CompanyThreadLocal.getCompanyId(), entityId);
+
+			return true;
+		}
+		catch (Exception exception) {
+			if (_log.isDebugEnabled()) {
+				_log.debug(exception);
+			}
+		}
+
+		return false;
+	}
+
+	private boolean _isSpIdPConnection(String entityId) {
+		try {
+			_samlSpIdpConnectionLocalService.getSamlSpIdpConnection(
+				CompanyThreadLocal.getCompanyId(), entityId);
+
+			return true;
+		}
+		catch (Exception exception) {
+			if (_log.isDebugEnabled()) {
+				_log.debug(exception);
+			}
+		}
+
+		return false;
+	}
+
 	private void _performIdpFinishLogout(
 			HttpServletRequest httpServletRequest,
 			HttpServletResponse httpServletResponse,
@@ -943,7 +977,19 @@ public class SingleLogoutProfileImpl
 			MessageContext<?> messageContext)
 		throws Exception {
 
-		if (samlProviderConfigurationHelper.isRoleIdp()) {
+		if (samlProviderConfigurationHelper.isRoleIb()) {
+			SAMLPeerEntityContext samlPeerEntityContext =
+				messageContext.getSubcontext(SAMLPeerEntityContext.class);
+
+			if (_isIdpSpConnection(samlPeerEntityContext.getEntityId())) {
+				_processIdpLogoutRequest(
+					httpServletRequest, httpServletResponse, messageContext);
+			}
+			else {
+				_processSpLogoutRequest(httpServletResponse, messageContext);
+			}
+		}
+		else if (samlProviderConfigurationHelper.isRoleIdp()) {
 			_processIdpLogoutRequest(
 				httpServletRequest, httpServletResponse, messageContext);
 		}
@@ -958,7 +1004,20 @@ public class SingleLogoutProfileImpl
 			MessageContext<?> messageContext)
 		throws Exception {
 
-		if (samlProviderConfigurationHelper.isRoleIdp()) {
+		if (samlProviderConfigurationHelper.isRoleIb()) {
+			SAMLPeerEntityContext samlPeerEntityContext =
+				messageContext.getSubcontext(SAMLPeerEntityContext.class);
+
+			if (_isSpIdPConnection(samlPeerEntityContext.getEntityId())) {
+				_processSpLogoutResponse(
+					httpServletRequest, httpServletResponse);
+			}
+			else {
+				_processIdpLogoutResponse(
+					httpServletRequest, httpServletResponse, messageContext);
+			}
+		}
+		else if (samlProviderConfigurationHelper.isRoleIdp()) {
 			_processIdpLogoutResponse(
 				httpServletRequest, httpServletResponse, messageContext);
 		}
@@ -1065,7 +1124,7 @@ public class SingleLogoutProfileImpl
 			HttpServletResponse httpServletResponse)
 		throws Exception {
 
-		if (samlProviderConfigurationHelper.isRoleIdp()) {
+		if (!samlProviderConfigurationHelper.isRoleSp()) {
 			terminateSsoSession(httpServletRequest, httpServletResponse);
 		}
 
@@ -1451,6 +1510,9 @@ public class SingleLogoutProfileImpl
 	private SamlHttpRequestHelper _samlHttpRequestHelper;
 
 	@Reference
+	private SamlIdpSpConnectionLocalService _samlIdpSpConnectionLocalService;
+
+	@Reference
 	private SamlIdpSpSessionLocalService _samlIdpSpSessionLocalService;
 
 	@Reference
@@ -1458,6 +1520,9 @@ public class SingleLogoutProfileImpl
 
 	@Reference
 	private SamlPeerBindingLocalService _samlPeerBindingLocalService;
+
+	@Reference
+	private SamlSpIdpConnectionLocalService _samlSpIdpConnectionLocalService;
 
 	@Reference
 	private UserLocalService _userLocalService;

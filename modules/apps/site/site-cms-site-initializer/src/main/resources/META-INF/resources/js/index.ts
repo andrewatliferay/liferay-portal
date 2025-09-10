@@ -23,6 +23,9 @@ export {default as EditFolder} from './main_view/folders/EditFolder';
 
 // Main
 
+export {default as QuickActions} from './main_view/home/QuickActions';
+export {default as SearchBar} from './main_view/home/SearchBar';
+export {default as ViewWorkflowTasks} from './main_view/home/ViewWorkflowTasks';
 export {default as AssetTypeInfoPanelContent} from './main_view/info_panel/AssetTypeInfoPanelContent';
 export {default as AllFDSPropsTransformer} from './main_view/props_transformer/AllFDSPropsTransformer';
 export {default as AllSpacesFDSPropsTransformer} from './main_view/props_transformer/AllSpacesFDSPropsTransformer';
@@ -31,6 +34,7 @@ export {default as CategoryUsagesFDSPropsTransformer} from './main_view/props_tr
 export {default as ContentsFDSPropsTransformer} from './main_view/props_transformer/ContentsFDSPropsTransformer';
 export {default as FilesFDSPropsTransformer} from './main_view/props_transformer/FilesFDSPropsTransformer';
 export {default as FolderFDSPropsTransformer} from './main_view/props_transformer/FolderFDSPropsTransformer';
+export {default as HomeRecentAssetsFDSPropsTransformer} from './main_view/props_transformer/HomeRecentAssetsFDSPropsTransformer';
 export {default as MembersFDSPropsTransformer} from './main_view/props_transformer/MembersFDSPropsTransformer';
 export {default as RecycleBinFDSPropsTransformer} from './main_view/props_transformer/RecycleBinFDSPropsTransformer';
 export {default as SharedWithMeFDSPropsTransformer} from './main_view/props_transformer/SharedWithMeFDSPropsTransformer';

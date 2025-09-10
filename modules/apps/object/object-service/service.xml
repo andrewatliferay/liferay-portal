@@ -224,7 +224,7 @@
 			<finder-column name="name" />
 		</finder>
 	</entity>
-	<entity local-service="true" name="ObjectEntry" remote-service="true" uuid="true">
+	<entity local-service="true" name="ObjectEntry" remote-service="true" trash-enabled="true" uuid="true">
 
 		<!-- External reference code -->
 
@@ -293,6 +293,11 @@
 		<finder name="ROEI_NotS" return-type="Collection">
 			<finder-column name="rootObjectEntryId" />
 			<finder-column comparator="!=" name="status" />
+		</finder>
+		<finder name="G_C_OEFI" return-type="Collection">
+			<finder-column name="groupId" />
+			<finder-column name="companyId" />
+			<finder-column name="objectEntryFolderId" />
 		</finder>
 		<finder name="G_ODI_S" return-type="Collection">
 			<finder-column name="groupId" />
@@ -402,7 +407,7 @@
 		<finder name="ObjectEntryId" return-type="Collection">
 			<finder-column name="objectEntryId" />
 		</finder>
-		<finder db-index="only" name="C_CD" return-type="Collection">
+		<finder name="C_CD" return-type="Collection">
 			<finder-column name="companyId" />
 			<finder-column name="createDate" />
 		</finder>

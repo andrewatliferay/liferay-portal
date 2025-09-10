@@ -14,6 +14,7 @@ import {pageViewModePagesTest} from '../../../fixtures/pageViewModePagesTest';
 import {liferayConfig} from '../../../liferay.config';
 import {clickAndExpectToBeVisible} from '../../../utils/clickAndExpectToBeVisible';
 import fillAndClickOutside from '../../../utils/fillAndClickOutside';
+import getGlobalSite from '../../../utils/getGlobalSite';
 import getRandomString from '../../../utils/getRandomString';
 import {templatesPageTest} from './fixtures/templatesPageTest';
 
@@ -450,3 +451,43 @@ test('View widget template based on script file applied and with corrupt script 
 		page.getByText('Unexpected end of file reached.')
 	).toBeVisible();
 });
+
+test(
+	'Check widget template is properly escaped and unescaped',
+	{tag: '@LPD-62889'},
+	async ({apiHelpers, page, site, templatesPage}) => {
+
+		// Go to widget templates administration
+
+		await templatesPage.gotoWidgetTemplates(site.friendlyUrlPath);
+
+		// Create widget template
+
+		const name = getRandomString();
+		const content = '<!-- WRONG COMMENT LINE-- > <script ></script>';
+
+		await templatesPage.createWidgetTemplate(
+			name,
+			'Asset Publisher Template',
+			content
+		);
+
+		// Edit it again and check it's shown properly
+
+		await templatesPage.editTemplate(name);
+
+		await expect(page.getByText(content)).toBeVisible();
+
+		// Now edit Rich Summary global template and check is properly unescaped
+
+		const globalSite = await getGlobalSite(apiHelpers);
+
+		await templatesPage.gotoWidgetTemplates(globalSite.friendlyURL);
+
+		await templatesPage.editWidgetTemplate('Rich Summary');
+
+		await expect(page.getByText('<#if').first()).toBeVisible();
+
+		await expect(page.getByText('&#34')).not.toBeVisible();
+	}
+);

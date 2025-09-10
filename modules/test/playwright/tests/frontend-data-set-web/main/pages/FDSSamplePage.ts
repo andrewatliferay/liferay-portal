@@ -21,12 +21,14 @@ export class FDSSamplePage {
 	};
 	readonly cards: {
 		container: Locator;
+		itemActionButtons: Locator;
 		items: Locator;
 	};
 	readonly customViewsActionsButton: Locator;
 	readonly customViewsDeleteAlert: Locator;
 	readonly customViewsSaveModal: Locator;
 	readonly customViewsSelectorButton: Locator;
+	readonly emptyStateContainer: Locator;
 	readonly fdsWrapper: Locator;
 	readonly fileDropModal: Locator;
 	readonly infoPanel: Locator;
@@ -34,10 +36,12 @@ export class FDSSamplePage {
 	readonly itemActionsButtons: Locator;
 	readonly list: {
 		container: Locator;
+		itemActionButtons: Locator;
 		items: Locator;
 	};
 	readonly managementToolbar: {
 		container: Locator;
+		searchButton: Locator;
 		searchInput: Locator;
 	};
 	readonly page: Page;
@@ -55,7 +59,7 @@ export class FDSSamplePage {
 		container: Locator;
 		firstColumnHeader: Locator;
 		headerCells: Locator;
-		itemActionsCells: Locator;
+		itemActionButtons: Locator;
 		manageColumnsVisibilityButton: Locator;
 	};
 	readonly toggleInfoPanelButton: Locator;
@@ -70,11 +74,15 @@ export class FDSSamplePage {
 				.getByLabel('Actions'),
 			container: page.locator('.bulk-actions'),
 		};
+
 		const cardsContainer = page.locator('.cards-container');
+
+		const cardItems = cardsContainer.locator('.card');
 
 		this.cards = {
 			container: cardsContainer,
-			items: cardsContainer.locator('.card'),
+			itemActionButtons: cardItems.getByLabel('More actions'),
+			items: cardItems,
 		};
 		this.customViewsActionsButton = page.getByLabel('Show View Actions', {
 			exact: true,
@@ -88,9 +96,10 @@ export class FDSSamplePage {
 		this.customViewsSelectorButton = page.getByLabel('Views', {
 			exact: true,
 		});
+		this.emptyStateContainer = page.locator('.fds .c-empty-state');
 		this.fdsWrapper = page.locator('div.data-set-wrapper').first();
 		this.fileDropModal = page.getByRole('dialog', {
-			name: 'Files',
+			name: 'Custom dummy file uploader',
 		});
 		this.infoPanel = page.locator('.fds-info-panel');
 
@@ -100,16 +109,28 @@ export class FDSSamplePage {
 
 		const listContainer = page.locator('.fds .list-sheet');
 
+		const listItems = listContainer.locator('.list-group-item');
+
 		this.list = {
 			container: listContainer,
-			items: listContainer.locator('.list-group-item'),
+			itemActionButtons: listItems.getByRole('button', {
+				exact: true,
+				name: 'Actions',
+			}),
+			items: listItems,
 		};
 
+		const managementToolbarContainer =
+			page.getByTestId('managementToolbar');
+
 		this.managementToolbar = {
-			container: page.getByTestId('managementToolbar'),
-			searchInput: page
-				.getByTestId('managementToolbar')
-				.locator('input[type="search"]'),
+			container: managementToolbarContainer,
+			searchButton: managementToolbarContainer.getByRole('button', {
+				name: 'Search',
+			}),
+			searchInput: managementToolbarContainer.locator(
+				'input[type="search"]'
+			),
 		};
 
 		this.page = page;
@@ -138,7 +159,12 @@ export class FDSSamplePage {
 			container: tableContainer,
 			firstColumnHeader: headerCells.nth(1),
 			headerCells,
-			itemActionsCells: tableContainer.locator('.cell-item-actions'),
+			itemActionButtons: tableContainer
+				.locator('.cell-item-actions')
+				.getByRole('button', {
+					exact: true,
+					name: 'Actions',
+				}),
 			manageColumnsVisibilityButton: tableContainer.getByTitle(
 				'Manage Columns Visibility'
 			),
@@ -189,6 +215,24 @@ export class FDSSamplePage {
 				name: action,
 			})
 			.click();
+	}
+
+	async checkDropdownMenuIconsAreVisible(itemActionButton: Locator) {
+		await itemActionButton.click();
+
+		const dropdownId = await itemActionButton.getAttribute('aria-controls');
+
+		const dropdownMenu = this.page.locator(`#${dropdownId}`);
+
+		await dropdownMenu.filter({has: this.page.getByRole('menu')}).waitFor();
+
+		const menuItems = dropdownMenu.getByRole('menuitem');
+
+		for (const menuItem of await menuItems.all()) {
+			await expect.soft(menuItem.locator('.lexicon-icon')).toBeVisible();
+		}
+
+		await this.page.keyboard.press('Escape');
 	}
 
 	selectItemActionsByRow(text: string) {

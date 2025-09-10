@@ -72,6 +72,12 @@ public class DataCleanupPreupgradeProcessSuite {
 		}
 	}
 
+	public List<DataCleanupPreupgradeProcess>
+		getDataCleanupPreupgradeProcesses() {
+
+		return _dataCleanupPreupgradeProcesses;
+	}
+
 	private static final Log _log = LogFactoryUtil.getLog(
 		DataCleanupPreupgradeProcessSuite.class);
 
@@ -110,6 +116,7 @@ public class DataCleanupPreupgradeProcessSuite {
 			new ConfigurationDataCleanupPreupgradeProcess(),
 			new DDMStructureDataCleanupPreupgradeProcess(),
 			new DLFileEntryDataCleanupPreupgradeProcess(),
+			new NullUnicodeContentDataCleanupPreupgradeProcess(),
 			new QuartzJobDetailsDataCleanupPreupgradeProcess());
 
 }

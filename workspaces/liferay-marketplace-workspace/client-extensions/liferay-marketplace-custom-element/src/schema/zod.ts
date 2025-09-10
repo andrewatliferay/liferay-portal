@@ -52,9 +52,14 @@ const freeApp = z.object({
 
 const paidApp = z.object({
 	...baseAppSchema,
-	email: z.string().email(),
-	phone: z.string().min(8),
-	publisherWebsiteURL: z.string().url(),
+	email: z.string().email(i18n.translate('please-fill-in-a-valid-email')),
+	phone: z.string().min(8, {
+		message: i18n.translate('please-fill-in-a-valid-phone-number'),
+	}),
+	publisherWebsiteURL: z
+		.string()
+		.url({message: i18n.translate('please-fill-in-a-valid-url')})
+		.transform((url) => (url.startsWith('http') ? url : `https://${url}`)),
 });
 
 const resources = z.object({
@@ -287,7 +292,7 @@ const zodSchema = {
 		termsAndConditions: z.boolean().refine((data) => data === true),
 	},
 	ssaTrialForm: z.object({
-		demoDuration: z.coerce
+		duration: z.coerce
 			.number()
 			.int()
 			.min(1, 'Please enter a valid number (1-60)')
@@ -309,7 +314,7 @@ const zodSchema = {
 				{message: 'One or more email addresses are invalid'}
 			)
 			.optional(),
-		objective: z.string().refine((val) => ['Test', 'Trial'].includes(val), {
+		objective: z.string().refine((val) => val, {
 			message: 'Select an Option',
 		}),
 		projectId: z
@@ -318,6 +323,7 @@ const zodSchema = {
 			.regex(/^[a-zA-Z0-9-]*$/, {
 				message: 'Only letters, numbers, and hyphens are allowed',
 			}),
+		siteInitializerKey: z.string(),
 	}),
 	trialForm: z.object({
 		accountId: z.string().optional(),

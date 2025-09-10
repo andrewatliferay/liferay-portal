@@ -22,6 +22,7 @@ import com.liferay.frontend.taglib.servlet.taglib.ComponentTag;
 import com.liferay.info.constants.InfoDisplayWebKeys;
 import com.liferay.info.field.InfoField;
 import com.liferay.info.field.type.BooleanInfoFieldType;
+import com.liferay.info.field.type.InfoFieldType;
 import com.liferay.info.field.type.MultiselectInfoFieldType;
 import com.liferay.info.form.InfoForm;
 import com.liferay.info.item.InfoItemDetails;
@@ -49,6 +50,7 @@ import com.liferay.layout.util.structure.CollectionStyledLayoutStructureItem;
 import com.liferay.layout.util.structure.ColumnLayoutStructureItem;
 import com.liferay.layout.util.structure.ContainerStyledLayoutStructureItem;
 import com.liferay.layout.util.structure.DropZoneLayoutStructureItem;
+import com.liferay.layout.util.structure.FormRelationshipStyledLayoutStructureItem;
 import com.liferay.layout.util.structure.FormStepContainerStyledLayoutStructureItem;
 import com.liferay.layout.util.structure.FormStyledLayoutStructureItem;
 import com.liferay.layout.util.structure.FragmentStyledLayoutStructureItem;
@@ -60,6 +62,7 @@ import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
 import com.liferay.petra.string.StringUtil;
 import com.liferay.portal.kernel.io.unsync.UnsyncStringWriter;
+import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.language.LanguageUtil;
 import com.liferay.portal.kernel.model.Layout;
 import com.liferay.portal.kernel.model.LayoutConstants;
@@ -92,6 +95,7 @@ import jakarta.servlet.jsp.PageContext;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -582,13 +586,18 @@ public class LayoutStructureRenderer {
 
 				ColTag colTag = new ColTag();
 
-				int numberOfColumns =
-					collectionStyledLayoutStructureItem.getNumberOfColumns();
+				if (Validator.isNull(
+						collectionStyledLayoutStructureItem.getListStyle())) {
 
-				colTag.setCssClass(
-					ResponsiveLayoutStructureUtil.getColumnCssClass(
-						collectionStyledLayoutStructureItem,
-						i % numberOfColumns));
+					int numberOfColumns =
+						collectionStyledLayoutStructureItem.
+							getNumberOfColumns();
+
+					colTag.setCssClass(
+						ResponsiveLayoutStructureUtil.getColumnCssClass(
+							collectionStyledLayoutStructureItem,
+							i % numberOfColumns));
+				}
 
 				colTag.setPageContext(_pageContext);
 
@@ -928,6 +937,71 @@ public class LayoutStructureRenderer {
 		jspWriter.write("</div></div>");
 	}
 
+	private void _renderFormRelationshipStyledLayoutStructureItem(
+			InfoForm infoForm,
+			FormRelationshipStyledLayoutStructureItem
+				formRelationshipStyledLayoutStructureItem)
+		throws Exception {
+
+		JspWriter jspWriter = _pageContext.getOut();
+
+		jspWriter.write("<div class=\"");
+		jspWriter.write(
+			formRelationshipStyledLayoutStructureItem.getUniqueCssClass());
+		jspWriter.write(StringPool.SPACE);
+		jspWriter.write(
+			formRelationshipStyledLayoutStructureItem.getCssClass());
+		jspWriter.write("\" data-layout-structure-item-id=\"");
+		jspWriter.write(formRelationshipStyledLayoutStructureItem.getItemId());
+		jspWriter.write("\"");
+
+		String style = _renderLayoutStructureDisplayContext.getStyle(
+			formRelationshipStyledLayoutStructureItem);
+
+		if (Validator.isNotNull(style)) {
+			jspWriter.write("\" style=\"");
+			jspWriter.write(style);
+		}
+
+		jspWriter.write("\">");
+
+		_renderLayoutStructure(
+			formRelationshipStyledLayoutStructureItem.getChildrenItemIds(),
+			infoForm);
+
+		_renderReactComponent(
+			"{FormRelationshipAddButton} from layout-taglib/render",
+			HashMapBuilder.<String, Object>put(
+				"addButtonLabel",
+				() -> {
+					JSONObject buttonLabelJSONObject =
+						formRelationshipStyledLayoutStructureItem.
+							getButtonLabelJSONObject();
+
+					String label = StringPool.BLANK;
+
+					if (buttonLabelJSONObject != null) {
+						String siteDefaultLanguageId =
+							LanguageUtil.getLanguageId(
+								PortalUtil.getSiteDefaultLocale(
+									_themeDisplay.getScopeGroupId()));
+
+						label = buttonLabelJSONObject.getString(
+							_themeDisplay.getLanguageId(),
+							siteDefaultLanguageId);
+					}
+
+					if (Validator.isNotNull(label)) {
+						return label;
+					}
+
+					return LanguageUtil.get(_httpServletRequest, "add-new");
+				}
+			).build());
+
+		jspWriter.write("</div>");
+	}
+
 	private void _renderFormStepContainerStyledLayoutStructureItem(
 			InfoForm infoForm,
 			FormStepContainerStyledLayoutStructureItem
@@ -1125,6 +1199,17 @@ public class LayoutStructureRenderer {
 			jspWriter.write(
 				layoutDisplayPageObjectProvider.getExternalReferenceCode());
 
+			String scopeExternalReferenceCode =
+				layoutDisplayPageObjectProvider.getScopeExternalReferenceCode(
+					_themeDisplay.getScopeGroupId());
+
+			if (Validator.isNotNull(scopeExternalReferenceCode)) {
+				jspWriter.write(
+					"\"><input name=\"scopeExternalReferenceCode\"");
+				jspWriter.write(" type=\"hidden\" value=\"");
+				jspWriter.write(scopeExternalReferenceCode);
+			}
+
 			if (!_hasUpdatePermission(layoutDisplayPageObjectProvider)) {
 				readOnly = true;
 			}
@@ -1279,6 +1364,8 @@ public class LayoutStructureRenderer {
 					defaultFragmentRendererContext, _httpServletRequest,
 					httpServletResponse);
 
+				Map<String, String> dataAttributes = new HashMap<>();
+
 				if ((infoForm != null) &&
 					Objects.equals(
 						fragmentEntryLink.getType(),
@@ -1291,23 +1378,33 @@ public class LayoutStructureRenderer {
 
 					String fieldName = GetterUtil.getString(
 						fragmentEntryConfigurationParser.getFieldValue(
-							fragmentEntryLink.getEditableValues(),
+							fragmentEntryLink.getEditableValuesJSONObject(),
 							new FragmentConfigurationField(
 								"inputFieldId", "string", "", false, "text"),
 							_themeDisplay.getLocale()));
 
 					InfoField<?> infoField = infoForm.getInfoField(fieldName);
 
-					if ((infoField != null) &&
-						(infoField.getInfoFieldType() instanceof
-							BooleanInfoFieldType ||
-						 infoField.getInfoFieldType() instanceof
-							 MultiselectInfoFieldType)) {
+					if (infoField != null) {
+						InfoFieldType infoFieldType =
+							infoField.getInfoFieldType();
 
-						jspWriter.write("<input name=\"checkboxNames\" ");
-						jspWriter.write("type=\"hidden\" value=\"");
-						jspWriter.write(fieldName);
-						jspWriter.write("\">");
+						if (infoFieldType instanceof BooleanInfoFieldType ||
+							infoFieldType instanceof MultiselectInfoFieldType) {
+
+							jspWriter.write("<input name=\"checkboxNames\" ");
+							jspWriter.write("type=\"hidden\" value=\"");
+							jspWriter.write(fieldName);
+							jspWriter.write("\">");
+						}
+
+						dataAttributes.put(
+							"field-type", infoFieldType.getName());
+
+						if (infoField.isLocalizable()) {
+							dataAttributes.put(
+								"localizable", Boolean.TRUE.toString());
+						}
 					}
 				}
 
@@ -1319,8 +1416,8 @@ public class LayoutStructureRenderer {
 						true)) {
 
 					_write(
-						fragmentEntryLink, fragmentStyledLayoutStructureItem,
-						jspWriter);
+						dataAttributes, fragmentEntryLink,
+						fragmentStyledLayoutStructureItem, jspWriter);
 				}
 				else {
 					jspWriter.write("<div>");
@@ -1396,6 +1493,14 @@ public class LayoutStructureRenderer {
 
 				_renderDropZoneLayoutStructureItem(
 					infoForm, layoutStructureItem);
+			}
+			else if (layoutStructureItem instanceof
+						FormRelationshipStyledLayoutStructureItem) {
+
+				_renderFormRelationshipStyledLayoutStructureItem(
+					infoForm,
+					(FormRelationshipStyledLayoutStructureItem)
+						layoutStructureItem);
 			}
 			else if (layoutStructureItem instanceof
 						FormStepContainerStyledLayoutStructureItem) {
@@ -1479,6 +1584,31 @@ public class LayoutStructureRenderer {
 		}
 	}
 
+	private void _renderReactComponent(String module, Map<String, Object> props)
+		throws Exception {
+
+		JspWriter jspWriter = _pageContext.getOut();
+
+		jspWriter.write("<div><span aria-hidden=\"true\" class=\"");
+		jspWriter.write("loading-animation\"></span>");
+
+		com.liferay.frontend.taglib.react.servlet.taglib.ComponentTag
+			componentTag =
+				new com.liferay.frontend.taglib.react.servlet.taglib.
+					ComponentTag();
+
+		componentTag.setModule(module);
+		componentTag.setPageContext(_pageContext);
+		componentTag.setProps(props);
+		componentTag.setServletContext(ServletContextUtil.getServletContext());
+
+		componentTag.doStartTag();
+
+		componentTag.doEndTag();
+
+		jspWriter.write("</div>");
+	}
+
 	private void _renderRowStyledLayoutStructureItem(
 			InfoForm infoForm,
 			RowStyledLayoutStructureItem rowStyledLayoutStructureItem)
@@ -1552,6 +1682,7 @@ public class LayoutStructureRenderer {
 	}
 
 	private void _write(
+			Map<String, String> dataAttributes,
 			FragmentEntryLink fragmentEntryLink,
 			FragmentStyledLayoutStructureItem fragmentStyledLayoutStructureItem,
 			JspWriter jspWriter)
@@ -1584,16 +1715,24 @@ public class LayoutStructureRenderer {
 
 		jspWriter.write("\" data-layout-structure-item-id=\"");
 		jspWriter.write(fragmentStyledLayoutStructureItem.getItemId());
+		jspWriter.write(StringPool.QUOTE);
+
+		for (Map.Entry<String, String> entry : dataAttributes.entrySet()) {
+			jspWriter.write(" data-" + entry.getKey() + "=\"");
+			jspWriter.write(entry.getValue());
+			jspWriter.write(StringPool.QUOTE);
+		}
 
 		String style = _renderLayoutStructureDisplayContext.getStyle(
 			fragmentStyledLayoutStructureItem);
 
 		if (Validator.isNotNull(style)) {
-			jspWriter.write("\" style=\"");
+			jspWriter.write(" style=\"");
 			jspWriter.write(style);
+			jspWriter.write(StringPool.QUOTE);
 		}
 
-		jspWriter.write("\">");
+		jspWriter.write(StringPool.GREATER_THAN);
 	}
 
 	private final HttpServletRequest _httpServletRequest;

@@ -21,16 +21,19 @@ import com.liferay.object.model.ObjectEntryFolder;
 import com.liferay.object.model.ObjectFolder;
 import com.liferay.object.service.ObjectDefinitionService;
 import com.liferay.object.service.ObjectEntryFolderLocalService;
+import com.liferay.petra.function.transform.TransformUtil;
 import com.liferay.petra.string.StringBundler;
 import com.liferay.petra.string.StringPool;
 import com.liferay.portal.kernel.dao.orm.QueryUtil;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.json.JSONArray;
 import com.liferay.portal.kernel.json.JSONFactoryUtil;
+import com.liferay.portal.kernel.json.JSONObject;
 import com.liferay.portal.kernel.json.JSONUtil;
 import com.liferay.portal.kernel.model.Group;
 import com.liferay.portal.kernel.model.GroupConstants;
 import com.liferay.portal.kernel.service.GroupLocalService;
+import com.liferay.portal.kernel.test.AssertUtils;
 import com.liferay.portal.kernel.test.ReflectionTestUtil;
 import com.liferay.portal.kernel.test.TestInfo;
 import com.liferay.portal.kernel.test.util.RandomTestUtil;
@@ -39,6 +42,7 @@ import com.liferay.portal.kernel.test.util.TestPropsValues;
 import com.liferay.portal.kernel.util.GetterUtil;
 import com.liferay.portal.kernel.util.HashMapBuilder;
 import com.liferay.portal.kernel.util.LocaleUtil;
+import com.liferay.portal.kernel.util.Portal;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.workflow.WorkflowConstants;
@@ -61,55 +65,117 @@ import org.junit.Test;
 public abstract class BaseSectionDisplayContextTestCase
 	extends BaseDisplayContextTestCase {
 
-	@Test
-	public void testGetAdditionalProps() throws Exception {
-		Assert.assertEquals(
-			HashMapBuilder.<String, Object>put(
-				"autocompleteURL",
-				() -> StringBundler.concat(
-					"/o/search/v1.0/search?emptySearch=",
-					"true&entryClassNames=com.liferay.portal.kernel.model.",
-					"User,com.liferay.portal.kernel.model.",
-					"UserGroup&nestedFields=embedded")
-			).put(
-				"cmsGroupId",
-				() -> {
-					try {
-						Group group = _groupLocalService.getGroup(
-							TestPropsValues.getCompanyId(), GroupConstants.CMS);
+	public HashMap<String, Object> getAdditionalProps() throws Exception {
+		return ReflectionTestUtil.invoke(
+			getSectionDisplayContext(getMockHttpServletRequest()),
+			"getAdditionalProps", new Class<?>[0]);
+	}
 
-						return GetterUtil.getLong(group.getGroupId());
-					}
-					catch (PortalException portalException) {
-						return null;
-					}
+	public HashMap<String, Object> getBaseAdditionalProps() {
+		return HashMapBuilder.<String, Object>put(
+			"assetLibraries", _getDepotEntriesJSONArray()
+		).put(
+			"autocompleteURL",
+			() -> StringBundler.concat(
+				"/o/search/v1.0/search?emptySearch=",
+				"true&entryClassNames=com.liferay.portal.kernel.model.",
+				"User,com.liferay.portal.kernel.model.",
+				"UserGroup&nestedFields=embedded")
+		).put(
+			"baseAssetLibraryViewURL",
+			StringBundler.concat(
+				GroupConstants.CMS_FRIENDLY_URL, "/e/space/",
+				_portal.getClassNameId(DepotEntry.class), StringPool.SLASH)
+		).put(
+			"baseFolderViewURL",
+			StringBundler.concat(
+				GroupConstants.CMS_FRIENDLY_URL, "/e/view-folder/",
+				_portal.getClassNameId(ObjectEntryFolder.class),
+				StringPool.SLASH)
+		).put(
+			"cmsGroupId",
+			() -> {
+				try {
+					Group group = groupLocalService.getGroup(
+						TestPropsValues.getCompanyId(), GroupConstants.CMS);
+
+					return GetterUtil.getLong(group.getGroupId());
 				}
-			).put(
-				"collaboratorURLs",
-				() -> {
-					Map<String, String> collaboratorURL = new HashMap<>();
+				catch (PortalException portalException) {
+					return null;
+				}
+			}
+		).put(
+			"collaboratorURLs",
+			() -> {
+				Map<String, String> collaboratorURL = new HashMap<>();
 
-					for (ObjectDefinition objectDefinition :
-							_objectDefinitionService.getCMSObjectDefinitions(
-								group.getCompanyId(),
-								getObjectFolderExternalReferenceCodes())) {
-
-						collaboratorURL.put(
-							objectDefinition.getClassName(),
-							StringBundler.concat(
-								"/o", objectDefinition.getRESTContextPath(),
-								"/{objectEntryId}/collaborators"));
-					}
+				for (ObjectDefinition objectDefinition :
+						objectDefinitionService.getCMSObjectDefinitions(
+							group.getCompanyId(),
+							getObjectFolderExternalReferenceCodes())) {
 
 					collaboratorURL.put(
-						ObjectEntryFolder.class.getName(),
-						"/o/headless-object/v1.0/object-entry-folders" +
-							"/{objectEntryFolderId}/collaborators");
-
-					return collaboratorURL;
+						objectDefinition.getClassName(),
+						StringBundler.concat(
+							"/o", objectDefinition.getRESTContextPath(),
+							"/{objectEntryId}/collaborators"));
 				}
+
+				collaboratorURL.put(
+					ObjectEntryFolder.class.getName(),
+					"/o/headless-object/v1.0/object-entry-folders" +
+						"/{objectEntryFolderId}/collaborators");
+
+				return collaboratorURL;
+			}
+		).put(
+			"objectDefinitionCssClasses",
+			HashMapBuilder.put(
+				"default", "content-icon-custom-structure"
+			).put(
+				"L_BASIC_WEB_CONTENT", "content-icon-basic-content"
+			).put(
+				"L_BLOG", "content-icon-blog"
+			).put(
+				"L_KNOWLEDGE_BASE", "content-icon-knowledge-base"
+			).build()
+		).put(
+			"objectDefinitionIcons",
+			HashMapBuilder.put(
+				"default", "web-content"
+			).put(
+				"L_BASIC_WEB_CONTENT", "forms"
+			).put(
+				"L_BLOG", "blogs"
+			).put(
+				"L_KNOWLEDGE_BASE", "wiki"
+			).build()
+		).put(
+			"parentObjectEntryFolderExternalReferenceCode",
+			getRootObjectEntryFolderExternalReferenceCode()
+		).put(
+			"redirect", "http://localhost:8080/currentURL"
+		).build();
+	}
+
+	@Test
+	public void getToolbarProps() throws Exception {
+		AssertUtils.assertEquals(
+			HashMapBuilder.<String, Object>put(
+				"title", "test"
+			).put(
+				"toolbarClassName", "section-toolbar tbar-light"
+			).put(
+				"toolbarTitleClassName", "section-toolbar-title"
 			).build(),
-			_getAdditionalProps());
+			_getToolbarProps());
+	}
+
+	@Test
+	public void testGetAdditionalProps() throws Exception {
+		AssertUtils.assertEquals(
+			getBaseAdditionalProps(), getAdditionalProps());
 	}
 
 	@Test
@@ -195,12 +261,12 @@ public abstract class BaseSectionDisplayContextTestCase
 
 			DepotEntry defaultDepotEntry = depotEntries.get(0);
 
-			Group defaultDepotGroup = _groupLocalService.fetchGroup(
+			Group defaultDepotGroup = groupLocalService.fetchGroup(
 				defaultDepotEntry.getGroupId());
 
 			Assert.assertEquals("Default", defaultDepotGroup.getGroupKey());
 
-			Group depotGroup = _groupLocalService.fetchGroup(
+			Group depotGroup = groupLocalService.fetchGroup(
 				depotEntry.getGroupId());
 
 			Assert.assertEquals(name, depotGroup.getGroupKey());
@@ -244,7 +310,7 @@ public abstract class BaseSectionDisplayContextTestCase
 
 		DepotEntry depotEntry = depotEntries.get(0);
 
-		Group depotGroup = _groupLocalService.fetchGroup(
+		Group depotGroup = groupLocalService.fetchGroup(
 			depotEntry.getGroupId());
 
 		Assert.assertEquals("Default", depotGroup.getGroupKey());
@@ -382,6 +448,12 @@ public abstract class BaseSectionDisplayContextTestCase
 			HttpServletRequest httpServletRequest)
 		throws Exception;
 
+	@Inject
+	protected GroupLocalService groupLocalService;
+
+	@Inject
+	protected ObjectDefinitionService objectDefinitionService;
+
 	private DepotEntry _addDepotEntry(String name) throws Exception {
 		return _depotEntryLocalService.addDepotEntry(
 			HashMapBuilder.put(
@@ -464,10 +536,26 @@ public abstract class BaseSectionDisplayContextTestCase
 		Assert.assertNull(dropdownItemData);
 	}
 
-	private HashMap<String, Object> _getAdditionalProps() throws Exception {
-		return ReflectionTestUtil.invoke(
-			getSectionDisplayContext(getMockHttpServletRequest()),
-			"getAdditionalProps", new Class<?>[0]);
+	private JSONArray _getDepotEntriesJSONArray() {
+		return _getDepotEntriesJSONArray(
+			TransformUtil.transform(
+				_depotEntryLocalService.getDepotEntries(
+					QueryUtil.ALL_POS, QueryUtil.ALL_POS),
+				DepotEntry::getGroupId));
+	}
+
+	private JSONArray _getDepotEntriesJSONArray(List<Long> groupIds) {
+		JSONArray jsonArray = JSONFactoryUtil.createJSONArray();
+
+		for (Long groupId : groupIds) {
+			JSONObject jsonObject = _getJSONObject(groupId);
+
+			if (jsonObject != null) {
+				jsonArray.put(jsonObject);
+			}
+		}
+
+		return jsonArray;
 	}
 
 	private DropdownItem _getDropdownItem(
@@ -486,8 +574,7 @@ public abstract class BaseSectionDisplayContextTestCase
 		JSONArray jsonArray = JSONFactoryUtil.createJSONArray();
 
 		for (DepotEntry depotEntry : depotEntries) {
-			Group group = _groupLocalService.fetchGroup(
-				depotEntry.getGroupId());
+			Group group = groupLocalService.fetchGroup(depotEntry.getGroupId());
 
 			if (group != null) {
 				jsonArray.put(
@@ -500,6 +587,20 @@ public abstract class BaseSectionDisplayContextTestCase
 		}
 
 		return jsonArray;
+	}
+
+	private JSONObject _getJSONObject(long groupId) {
+		Group group = groupLocalService.fetchGroup(groupId);
+
+		if (group == null) {
+			return null;
+		}
+
+		return JSONUtil.put(
+			"groupId", group.getGroupId()
+		).put(
+			"name", group.getName(LocaleUtil.getDefault())
+		);
 	}
 
 	private String _getRedirect(DropdownItem dropdownItem) {
@@ -525,6 +626,12 @@ public abstract class BaseSectionDisplayContextTestCase
 		}
 
 		return ObjectEntryFolderConstants.EXTERNAL_REFERENCE_CODE_FILES;
+	}
+
+	private HashMap<String, Object> _getToolbarProps() throws Exception {
+		return ReflectionTestUtil.invoke(
+			getSectionDisplayContext(getMockHttpServletRequest()),
+			"getToolbarProps", new Class<?>[0]);
 	}
 
 	private void _testGetCreationMenu(
@@ -577,6 +684,10 @@ public abstract class BaseSectionDisplayContextTestCase
 		try {
 			CreationMenu creationMenu = getCreationMenu(objectEntryFolder);
 
+			if (creationMenu == null) {
+				return;
+			}
+
 			if (depotEntries != null) {
 				_assertCreationMenuContainsDropdownItem(
 					creationMenu, _getJSONArray(depotEntries),
@@ -598,12 +709,9 @@ public abstract class BaseSectionDisplayContextTestCase
 	private DepotEntryLocalService _depotEntryLocalService;
 
 	@Inject
-	private GroupLocalService _groupLocalService;
-
-	@Inject
-	private ObjectDefinitionService _objectDefinitionService;
-
-	@Inject
 	private ObjectEntryFolderLocalService _objectEntryFolderLocalService;
+
+	@Inject
+	private Portal _portal;
 
 }

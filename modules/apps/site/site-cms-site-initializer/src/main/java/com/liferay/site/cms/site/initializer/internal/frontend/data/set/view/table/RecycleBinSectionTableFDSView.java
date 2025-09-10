@@ -32,9 +32,16 @@ public class RecycleBinSectionTableFDSView extends BaseTableFDSView {
 			fdsTableSchemaBuilderFactory.create();
 
 		return fdsTableSchemaBuilder.add(
-			"embedded.title", "title"
+			"embedded.title", "title",
+			fdsTableSchemaField -> fdsTableSchemaField.setActionId(
+				"actionLink"
+			).setContentRenderer(
+				"simpleActionLinkTableCellRenderer"
+			).setSortable(
+				true
+			)
 		).add(
-			"embedded.objectDefinitionName", "type"
+			"embedded.systemProperties.objectDefinitionBrief.label", "type"
 		).add(
 			"embedded.scopeKey", "space",
 			fdsTableSchemaField -> fdsTableSchemaField.setContentRenderer(

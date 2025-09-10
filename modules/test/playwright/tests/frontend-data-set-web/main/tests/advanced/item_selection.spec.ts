@@ -16,7 +16,6 @@ const test = mergeTests(
 	apiHelpersTest,
 	fdsSamplePageTest,
 	featureFlagsTest({
-		'LPD-52212': {enabled: true},
 		'LPS-178052': {enabled: true},
 	}),
 	isolatedSiteTest,
@@ -251,19 +250,10 @@ test(
 	'Check behavior of quick actions',
 	{tag: '@LPS-153220'},
 	async ({fdsSamplePage, page}) => {
-		const firstRowItemActionButton = fdsSamplePage.table.itemActionsCells
-			.first()
-			.getByRole('button', {
-				exact: true,
-				name: 'Actions',
-			});
-
-		const thirdRowItemActionButton = fdsSamplePage.table.itemActionsCells
-			.nth(2)
-			.getByRole('button', {
-				exact: true,
-				name: 'Actions',
-			});
+		const firstRowItemActionButton =
+			fdsSamplePage.table.itemActionButtons.first();
+		const thirdRowItemActionButton =
+			fdsSamplePage.table.itemActionButtons.nth(2);
 
 		const firstRowSampleEditQuickActionLink = fdsSamplePage.table.bodyRows
 			.first()

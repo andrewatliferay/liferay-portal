@@ -14,7 +14,7 @@ import {VIEWS_ACTION_TYPES} from '../../../views/viewsReducer';
 import FilterResume from './FilterResume';
 import SearchResume from './SearchResume';
 
-function ActiveFiltersBar({disabled, total}) {
+function ActiveFiltersBar({dataLoading, disabled, total}) {
 	const {onSearch, searchParam, searching, setSearching} = useContext(
 		FrontendDataSetContext
 	);
@@ -35,15 +35,12 @@ function ActiveFiltersBar({disabled, total}) {
 			})),
 		});
 
-		if (Liferay.FeatureFlags['LPD-52212']) {
-			onSearch({query: ''});
-		}
+		onSearch({query: ''});
 	};
 
 	const activeFilters = filters.filter((filter) => filter.active);
 
-	return activeFilters.length ||
-		(Liferay.FeatureFlags['LPD-52212'] && searchActive) ? (
+	return activeFilters.length || searchActive ? (
 		<div
 			className="management-bar management-bar-light navbar navbar-expand-md"
 			data-qa-id="activeFiltersToolbar"
@@ -53,30 +50,28 @@ function ActiveFiltersBar({disabled, total}) {
 					<ul className="tbar-nav">
 						<li className="p-0 tbar-item tbar-item-expand">
 							<div className="tbar-section">
-								{Liferay.FeatureFlags['LPD-52212'] &&
-									(searching ? (
-										<span>
-											{Liferay.Language.get(
-												'requesting-results-for-colon'
-											)}
-										</span>
-									) : (
-										<span>
-											{sub(
-												total === 1
-													? Liferay.Language.get(
-															'x-result-found-for-colon'
-														)
-													: Liferay.Language.get(
-															'x-results-found-for-colon'
-														),
-												total
-											)}
-										</span>
-									))}
+								{dataLoading && searching ? (
+									<span>
+										{Liferay.Language.get(
+											'requesting-results-for-colon'
+										)}
+									</span>
+								) : (
+									<span>
+										{sub(
+											total === 1
+												? Liferay.Language.get(
+														'x-result-found-for-colon'
+													)
+												: Liferay.Language.get(
+														'x-results-found-for-colon'
+													),
+											total
+										)}
+									</span>
+								)}
 
-								{Liferay.FeatureFlags['LPD-52212'] &&
-									searchActive && <SearchResume />}
+								{searchActive && <SearchResume />}
 
 								{activeFilters.map((filter) => {
 									return (
@@ -98,9 +93,7 @@ function ActiveFiltersBar({disabled, total}) {
 									displayType="unstyled"
 									onClick={resetFiltersValue}
 								>
-									{Liferay.FeatureFlags['LPD-52212']
-										? Liferay.Language.get('clear')
-										: Liferay.Language.get('reset-filters')}
+									{Liferay.Language.get('clear')}
 								</ClayButton>
 							</div>
 						</li>
@@ -112,6 +105,7 @@ function ActiveFiltersBar({disabled, total}) {
 }
 
 ActiveFiltersBar.propTypes = {
+	dataLoading: PropTypes.bool,
 	disabled: PropTypes.bool,
 	total: PropTypes.number,
 };

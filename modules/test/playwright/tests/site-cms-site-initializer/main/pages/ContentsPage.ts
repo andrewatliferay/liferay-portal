@@ -10,7 +10,7 @@ import {clickAndExpectToBeVisible} from '../../../../utils/clickAndExpectToBeVis
 import {PORTLET_URLS} from '../../../../utils/portletUrls';
 import {waitForAlert} from '../../../../utils/waitForAlert';
 
-type SidePanelName = 'General' | 'Comments' | 'Schedule';
+type SidePanelName = 'Categorization' | 'General' | 'Comments' | 'Schedule';
 
 type Field =
 	| {
@@ -47,7 +47,7 @@ export class ContentsPage {
 	async goto() {
 		await this.page.goto(PORTLET_URLS.cmsContents);
 
-		await this.newButton.waitFor();
+		await this.newButton.waitFor({state: 'visible'});
 	}
 
 	async closeSidePanel() {
@@ -73,7 +73,21 @@ export class ContentsPage {
 		await this.page.getByRole('tab', {name: 'General'}).waitFor();
 	}
 
-	async deleteContent(title: string) {
+	async createFolder(folderName: string) {
+		await clickAndExpectToBeVisible({
+			autoClick: true,
+			target: this.page.getByRole('menuitem', {name: 'Folder'}),
+			trigger: this.newButton,
+		});
+
+		await this.page.getByRole('heading', {name: 'New Folder'}).waitFor();
+
+		await this.page.getByLabel('NameRequired').fill(folderName);
+
+		await this.page.getByRole('button', {name: 'Save'}).click();
+	}
+
+	async deleteContent(title: string, recycleBinEnabled: boolean = false) {
 		const card = this.page
 			.locator('tr', {hasText: title})
 			.or(this.page.locator('.card-row', {hasText: title}));
@@ -88,7 +102,17 @@ export class ContentsPage {
 			trigger: card.locator('button'),
 		});
 
-		await waitForAlert(this.page, 'Your request completed successfully');
+		if (recycleBinEnabled) {
+			await waitForAlert(this.page, `Success:${title} was moved`, {
+				autoClose: false,
+			});
+		}
+		else {
+			await waitForAlert(
+				this.page,
+				`Success:${title} has been permanently deleted.`
+			);
+		}
 	}
 
 	async editContent(title: string) {
@@ -125,6 +149,15 @@ export class ContentsPage {
 				await element.setChecked(field.value);
 			}
 		}
+	}
+
+	async navigateTo(folderName: string) {
+		await this.page
+			.getByRole('row', {name: folderName})
+			.getByRole('link')
+			.click();
+
+		await this.page.getByPlaceholder('Search').waitFor({state: 'visible'});
 	}
 
 	async openSidePanel(panelName: SidePanelName = 'General') {
